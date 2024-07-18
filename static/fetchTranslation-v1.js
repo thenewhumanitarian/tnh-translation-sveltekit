@@ -11,6 +11,22 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'ht', name: 'Creole' }
   ];
 
+  const articleBodyElement = document.querySelector('.article__body');
+  if (!articleBodyElement) {
+    console.error('.article__body element not found.');
+    return;
+  }
+
+  // Store the original content of the <article> tag
+  const articleElement = document.querySelector('article');
+  if (articleElement) {
+    window.originalBody = articleElement.innerHTML;
+    console.log("Original content stored.");
+  } else {
+    console.error('Article element not found.');
+    return;
+  }
+
   // Create dropdown menu
   const dropdown = document.createElement('select');
   dropdown.id = 'language-dropdown';
@@ -29,7 +45,12 @@ document.addEventListener("DOMContentLoaded", () => {
   translateButton.style.cursor = 'pointer';
   translateButton.addEventListener('click', handleTranslation);
 
-  // Create a container for the dropdown and button
+  // Create loading message
+  const loadingMessage = document.createElement('p');
+  loadingMessage.textContent = 'Loading...';
+  loadingMessage.style.display = 'none';
+
+  // Create a container for the dropdown, button, and loading message
   const container = document.createElement('div');
   container.style.marginBottom = '1em';
   container.style.display = 'flex';
@@ -39,34 +60,21 @@ document.addEventListener("DOMContentLoaded", () => {
   container.style.alignItems = 'center';
   container.appendChild(dropdown);
   container.appendChild(translateButton);
+  container.appendChild(loadingMessage);
 
   // Prepend the container to the .article__body element
-  const articleBodyElement = document.querySelector('.article__body');
-  if (articleBodyElement) {
-    articleBodyElement.prepend(container);
-    console.log("Dropdown and button added to the .article__body.");
-  } else {
-    console.error('.article__body element not found.');
-    return;
-  }
-
-  // Store the original content of the <article> tag
-  const articleElement = document.querySelector('article');
-  if (articleElement) {
-    window.originalBody = articleElement.innerHTML;
-    console.log("Original content stored.");
-  } else {
-    console.error('Article element not found.');
-  }
+  articleBodyElement.prepend(container);
+  console.log("Dropdown and button added to the .article__body.");
 
   async function handleTranslation() {
     console.log("Translate button clicked.");
+    loadingMessage.style.display = 'block';
 
     const targetLanguage = document.getElementById('language-dropdown').value;
-    const articleElement = document.querySelector('article');
 
     if (!articleElement) {
       console.error('Article element not found.');
+      loadingMessage.style.display = 'none';
       return;
     }
 
@@ -82,7 +90,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      console.log("Sending translation request...");
       const response = await fetch('https://tnh-translation.vercel.app/api/translate-start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,14 +103,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log('Translation response:', data);
 
+      // Store the container
+      const container = articleBodyElement.querySelector('div');
+
       // Replace the content of the article with the translated content
       articleElement.innerHTML = data.translation;
 
-      // Re-add the dropdown and button to the new content
-      articleElement.prepend(container);
+      // Re-add the dropdown and button after translation
+      articleBodyElement.prepend(container);
 
     } catch (error) {
       console.error('Error during translation process:', error);
+    } finally {
+      loadingMessage.style.display = 'none';
     }
   }
 });
