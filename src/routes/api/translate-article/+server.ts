@@ -92,7 +92,7 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const chunkSize = 3000; // Define chunk size
+    const chunkSize = 2000; // Define chunk size
     const chunks = splitHtmlIntoChunks(cleanedHtmlContent, chunkSize);
 
     console.log(`Total chunks: ${chunks.length}`);
