@@ -128,4 +128,10 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     console.log('Translation successful and stored in Supabase');
-// Return the new translation
+    // Return the new translation
+    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
+  } catch (error) {
+    console.error(`Error during translation process: ${error.message}`);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+};
