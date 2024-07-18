@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log('Translation is processing, checking status...');
         checkTranslationStatus(nodeId, targetLanguage, articleElement);
       } else {
-        console.log('Translation completed:', data.translation);
+        console.log('Translation completed');
         articleElement.innerHTML = data.translation;
 
         // Recreate and prepend the translation controls
@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log('Translation still processing...');
         setTimeout(() => checkTranslationStatus(articleId, targetLanguage, articleElement), 5000);
       } else {
-        console.log('Translation completed:', data.translation);
+        console.log('Translation completed');
         articleElement.innerHTML = data.translation;
 
         // Recreate and prepend the translation controls
