@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Create dropdown menu
   const dropdown = document.createElement('select');
   dropdown.id = 'language-dropdown';
-  dropdown.style.marginRight = '10px';
+  dropdown.style.width = '100%';
   languages.forEach(language => {
     const option = document.createElement('option');
     option.value = language.code;
@@ -26,13 +26,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Create translate button
   const translateButton = document.createElement('button');
   translateButton.textContent = 'Translate';
-  translateButton.style.marginRight = '10px';
+  translateButton.style.padding = '0.8rem';
+  translateButton.style.cursor = 'pointer';
   translateButton.addEventListener('click', handleTranslation);
 
   // Create a container for the dropdown and button
   const container = document.createElement('div');
   container.style.marginBottom = '1em';
   container.style.display = 'flex';
+  container.style.gap = '1rem';
+  container.style.width = '100';
+  container.style.justifyContent = 'end';
   container.style.alignItems = 'center';
   container.appendChild(dropdown);
   container.appendChild(translateButton);

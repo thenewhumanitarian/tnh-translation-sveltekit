@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
+import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
-import { PASSWORD } from '$env/static/private';
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
@@ -68,14 +68,14 @@ export const POST: RequestHandler = async ({ request }) => {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
 
     if (password !== PASSWORD) {
-      return new Response(JSON.stringify({ error: 'Invalid password' }), { status: 403 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
+    // Check if translation exists in Supabase by matching the article ID and target language
     const { data, error } = await supabase
       .from('translations')
       .select('*')
@@ -105,10 +105,7 @@ export const POST: RequestHandler = async ({ request }) => {
       translatedHtml = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
     } else {
       const chatCompletion = await openai.chat.completions.create({
-        messages: [{
-          role: 'user',
-          content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags. Remove empty <p> tags and those which only contain &nbsp;. Don't translate anything inside of the elements with classes: .meta-list, .article__author-location, .image__attr, .author__name, .article__actions or .article__extras.\n\nThe text to translate is::\n\n${cleanedHtmlContent}`
-        }],
+        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${cleanedHtmlContent}` }],
         model: gptModel
       });
       translatedHtml = chatCompletion.choices[0].message.content;
@@ -131,10 +128,4 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
-  } catch (error) {
-    console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  }
-};
+// Return the new translation
