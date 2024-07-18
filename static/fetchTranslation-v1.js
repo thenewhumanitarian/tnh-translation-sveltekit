@@ -72,6 +72,43 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error('Article element not found.');
   }
 
+  function splitHtmlIntoChunks(html, chunkSize) {
+    const chunks = [];
+    let currentChunk = '';
+    const regex = /(<\/?[^>]+>)/g;
+    let lastIndex = 0;
+
+    html.replace(regex, (match, tag, index) => {
+      const textPart = html.substring(lastIndex, index);
+      if (currentChunk.length + textPart.length > chunkSize) {
+        chunks.push(currentChunk);
+        currentChunk = '';
+      }
+      currentChunk += textPart;
+      if (currentChunk.length + match.length > chunkSize) {
+        chunks.push(currentChunk);
+        currentChunk = '';
+      }
+      currentChunk += match;
+      lastIndex = index + match.length;
+    });
+
+    const remainingText = html.substring(lastIndex);
+    if (remainingText.length > 0) {
+      if (currentChunk.length + remainingText.length > chunkSize) {
+        chunks.push(currentChunk);
+        chunks.push(remainingText);
+      } else {
+        currentChunk += remainingText;
+        chunks.push(currentChunk);
+      }
+    } else if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+
+    return chunks;
+  }
+
   async function handleTranslation() {
     console.log("Translate button clicked.");
 
@@ -92,30 +129,40 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    const payload = {
-      articleId: nodeId,
-      targetLanguage: targetLanguage,
-      htmlContent: window.originalBody,
-      password: 'tnh',
-      lastUpdated: lastUpdated
-    };
+    const htmlContent = window.originalBody;
+    const chunkSize = 2000; // Define chunk size
+    const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
 
-    try {
-      const response = await fetch('https://tnh-translation.vercel.app/api/translate-html', {
+    const translationPromises = chunks.map(chunk => {
+      const payload = {
+        articleId: nodeId,
+        targetLanguage: targetLanguage,
+        htmlContent: chunk,
+        password: 'tnh',
+        lastUpdated: lastUpdated
+      };
+
+      return fetch('https://tnh-translation.vercel.app/api/translate-html', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch translation');
+          }
+          return response.json();
+        })
+        .then(data => data.translation);
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch translation');
-      }
-
-      const data = await response.json();
-      console.log('Translation response:', data);
+    try {
+      const translatedChunks = await Promise.all(translationPromises);
+      const translatedHtml = translatedChunks.join('');
+      console.log('Translation response:', translatedHtml);
 
       // Replace the content of the article with the translated content
-      articleElement.innerHTML = data.translation;
+      articleElement.innerHTML = translatedHtml;
 
       // Re-add the dropdown and button
       prependDropdownAndButton();
