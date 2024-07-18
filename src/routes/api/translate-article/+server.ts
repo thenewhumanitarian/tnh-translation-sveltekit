@@ -48,7 +48,7 @@ function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
 
 async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
   const chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags. Don't translate elements that have class set to one of thewse values: 'region-breadcrumb__link', 'meta-list', 'article__post-share'.\nText:\n\n${chunk}` }],
+    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
     model: gptModel
   });
 
