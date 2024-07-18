@@ -53,30 +53,34 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Store the original content of the <article> tag if not already stored
-  const articleBodyElement = document.querySelector('.article__body');
-  if (articleBodyElement && !window.originalBody) {
-    window.originalBody = articleBodyElement.innerHTML;
+  const articleElement = document.querySelector('article');
+  if (articleElement && !window.originalBody) {
+    window.originalBody = articleElement.innerHTML;
     console.log("Original content stored.");
-  } else if (!articleBodyElement) {
-    console.error('.article__body element not found.');
+  } else if (!articleElement) {
+    console.error('Article element not found.');
   }
 
   // Append the translation controls on document load
+  const articleBodyElement = document.querySelector('.article__body');
   if (articleBodyElement) {
     articleBodyElement.prepend(createTranslationControls());
-    console.log("Dropdown and button added to the .article__body.");
+    console.log("Dropdown and button added to the article.");
+  } else {
+    console.error('.article__body element not found.');
   }
 
   async function handleTranslation() {
     console.log("Translate button clicked.");
 
     const targetLanguage = document.getElementById('language-dropdown').value;
+    const articleElement = document.querySelector('article');
     const dropdown = document.getElementById('language-dropdown');
     const translateButton = document.querySelector('button');
     const loadingMessage = document.getElementById('loading-message');
 
-    if (!articleBodyElement) {
-      console.error('.article__body element not found.');
+    if (!articleElement) {
+      console.error('Article element not found.');
       return;
     }
 
@@ -98,8 +102,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      console.log("Sending translation request with payload:", payload);
-      const response = await fetch('http://localhost:5173/api/translate-background', {
+      // console.log("Sending translation request with payload:", payload);
+      const response = await fetch('https://tnh-translation.vercel.app/api/translate-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -110,19 +114,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const data = await response.json();
-      console.log('Translation response:', data);
+      // console.log('Translation response:', data);
 
       // Check status and update UI accordingly
       if (data.status === 'processing') {
         console.log('Translation is processing, checking status...');
-        checkTranslationStatus(nodeId, targetLanguage, articleBodyElement);
+        checkTranslationStatus(nodeId, targetLanguage, articleElement);
       } else {
-        console.log('Translation completed:', data.translation);
-        articleBodyElement.innerHTML = data.translation;
+        console.log('Translation completed');
+        articleElement.innerHTML = data.translation;
 
         // Recreate and prepend the translation controls
         const newContainer = createTranslationControls();
-        articleBodyElement.prepend(newContainer);
+        articleElement.querySelector('.article__body').prepend(newContainer);
       }
     } catch (error) {
       console.error('Error during translation process:', error);
@@ -135,4 +139,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function checkTranslationStatus(articleId, targetLanguage, article
+  async function checkTranslationStatus(articleId, targetLanguage, articleElement) {
+    try {
+      console.log(`Checking translation status for articleId: ${articleId}, targetLanguage: ${targetLanguage}`);
+      const response = await fetch(`https://tnh-translation.vercel.app/api/translation-status?articleId=${articleId}&targetLanguage=${targetLanguage}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch translation status');
+      }
+
+      const data = await response.json();
+      console.log('Translation status response:', data);
+
+      if (data.status === 'processing') {
+        console.log('Translation still processing...');
+        setTimeout(() => checkTranslationStatus(articleId, targetLanguage, articleElement), 5000);
+      } else {
+        console.log('Translation completed');
+        articleElement.innerHTML = data.translation;
+
+        // Recreate and prepend the translation controls
+        const newContainer = createTranslationControls();
+        articleElement.querySelector('.article__body').prepend(newContainer);
+      }
+    } catch (error) {
+      console.error('Error during translation status check:', error);
+      setTimeout(() => checkTranslationStatus(articleId, targetLanguage, articleElement), 5000);
+    }
+  }
+});
