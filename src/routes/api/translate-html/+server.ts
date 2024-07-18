@@ -67,7 +67,7 @@ async function translateLongHtmlContent(htmlContent: string, srcLanguage: string
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo' } = await request.json();
-    
+
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);

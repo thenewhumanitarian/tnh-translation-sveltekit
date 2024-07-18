@@ -57,17 +57,6 @@
 			isLoading.set(false);
 		}
 	}
-
-	function copyToClipboard(text: string) {
-		navigator.clipboard.writeText(text).then(
-			() => {
-				alert('Copied to clipboard');
-			},
-			(err) => {
-				console.error('Failed to copy: ', err);
-			}
-		);
-	}
 </script>
 
 <main class="p-5">
@@ -104,7 +93,7 @@
 	{/if}
 
 	{#if $translatedHtml}
-		<div class="mb-5">
+		<div class="mb-4">
 			<button
 				on:click={() => showRenderedHtml.update((v) => !v)}
 				class="p-2 bg-gray-500 text-white"
@@ -116,11 +105,8 @@
 					Show Rendered
 				{/if}
 			</button>
-			<button on:click={() => copyToClipboard($translatedHtml)} class="p-2 bg-green-500 text-white"
-				>Copy HTML</button
-			>
 		</div>
-		<div class="green box">
+		<div class="grey box">
 			{#if $showRenderedHtml}
 				{@html $translatedHtml}
 			{/if}
@@ -138,15 +124,9 @@
 					<p><strong>Target Language:</strong> {$requestData.targetLanguage}</p>
 					<hr />
 					<p><strong>Original String:</strong></p>
-					<pre>{$requestData.htmlContent}</pre>
+					<p>{$requestData.htmlContent}</p>
 				</div>
 			{/if}
 		</div>
 	{/if}
 </main>
-
-<style>
-	.error {
-		color: red;
-	}
-</style>
