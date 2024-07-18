@@ -51,7 +51,7 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
     messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
     model: gptModel
   });
-
+ 
   return chatCompletion.choices[0].message.content;
 }
 
