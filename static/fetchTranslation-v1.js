@@ -13,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   function createDropdownAndButton() {
-    // Create dropdown menu
     const dropdown = document.createElement('select');
     dropdown.id = 'language-dropdown';
     dropdown.style.width = '100%';
@@ -24,19 +23,18 @@ document.addEventListener("DOMContentLoaded", () => {
       dropdown.appendChild(option);
     });
 
-    // Create translate button
     const translateButton = document.createElement('button');
     translateButton.textContent = 'Translate';
     translateButton.style.padding = '0.9rem';
     translateButton.style.cursor = 'pointer';
     translateButton.addEventListener('click', handleTranslation);
 
-    // Create a container for the dropdown and button
     const container = document.createElement('div');
+    container.id = 'dropdown-container';
     container.style.marginBottom = '1em';
     container.style.display = 'flex';
     container.style.gap = '1rem';
-    container.style.width = '100';
+    container.style.width = '100%';
     container.style.justifyContent = 'end';
     container.style.alignItems = 'center';
     container.appendChild(dropdown);
@@ -48,14 +46,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function prependDropdownAndButton() {
     const articleBodyElement = document.querySelector('.article__body');
     if (articleBodyElement) {
-      // Remove existing dropdown and button if present
       const existingContainer = document.getElementById('dropdown-container');
       if (existingContainer) {
         existingContainer.remove();
       }
 
       const container = createDropdownAndButton();
-      container.id = 'dropdown-container';
       articleBodyElement.prepend(container);
       console.log("Dropdown and button added to the .article__body.");
     } else {
@@ -63,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Store the original content of the <article> tag
   const articleElement = document.querySelector('article');
   if (articleElement) {
     window.originalBody = articleElement.innerHTML;
@@ -120,60 +115,60 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Display loading message
-    const loadingMessage = document.createElement('div');
-    loadingMessage.textContent = 'Loading...';
-    loadingMessage.style.marginTop = '1em';
-    articleElement.appendChild(loadingMessage);
-
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    const htmlContent = window.originalBody;
-    const chunkSize = 2000; // Define chunk size
-    const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
-
-    const translationPromises = chunks.map(chunk => {
-      const payload = {
-        articleId: nodeId,
-        targetLanguage: targetLanguage,
-        htmlContent: chunk,
-        password: 'tnh',
-        lastUpdated: lastUpdated
-      };
-
-      return fetch('https://tnh-translation.vercel.app/api/translate-html', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch translation');
-          }
-          return response.json();
-        })
-        .then(data => data.translation);
-    });
+    const originalBody = window.originalBody;
+    const chunks = splitHtmlIntoChunks(originalBody, 2000);
 
     try {
-      const translatedChunks = await Promise.all(translationPromises);
-      const translatedHtml = translatedChunks.join('');
-      console.log('Translation response:', translatedHtml);
+      for (let i = 0; i < chunks.length; i++) {
+        const payload = {
+          articleId: nodeId,
+          targetLanguage: targetLanguage,
+          htmlContent: chunks[i],
+          password: 'tnh',
+          lastUpdated: lastUpdated,
+          chunkIndex: i,
+          totalChunks: chunks.length
+        };
+
+        const response = await fetch('https://tnh-translation.vercel.app/api/translate-html', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch translation');
+        }
+
+        const data = await response.json();
+        console.log(`Chunk ${i + 1}/${chunks.length} translated.`);
+      }
+
+      const finalResponse = await fetch(`https://tnh-translation.vercel.app/api/translate-html-finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId: nodeId, targetLanguage: targetLanguage })
+      });
+
+      if (!finalResponse.ok) {
+        throw new Error('Failed to finalize translation');
+      }
+
+      const finalData = await finalResponse.json();
+      console.log('Final translation response:', finalData);
 
       // Replace the content of the article with the translated content
-      articleElement.innerHTML = translatedHtml;
+      articleElement.innerHTML = finalData.translation;
 
-      // Re-add the dropdown and button
+      // Re-add the dropdown and button to the translated content
       prependDropdownAndButton();
     } catch (error) {
       console.error('Error during translation process:', error);
-    } finally {
-      // Remove loading message
-      loadingMessage.remove();
     }
   }
 
-  // Initial setup
   prependDropdownAndButton();
 });
