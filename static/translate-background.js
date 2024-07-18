@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      console.log("Sending translation request with payload:", payload);
+      // console.log("Sending translation request with payload:", payload);
       const response = await fetch('https://tnh-translation.vercel.app/api/translate-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const data = await response.json();
-      console.log('Translation response:', data);
+      // console.log('Translation response:', data);
 
       // Check status and update UI accordingly
       if (data.status === 'processing') {
