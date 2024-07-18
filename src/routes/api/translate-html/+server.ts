@@ -1,3 +1,4 @@
+import { PASSWORD } from '$env/static/private';
 import type { RequestHandler } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
@@ -66,7 +67,11 @@ async function translateLongHtmlContent(htmlContent: string, srcLanguage: string
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo' } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password } = await request.json();
+
+    if (password !== PASSWORD) {
+      return new Response(JSON.stringify({ error: 'Invalid password' }), { status: 401 });
+    }
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
