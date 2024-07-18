@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Store the original content of the <article> tag if not already stored
-  const articleElement = document.querySelector('article');
+  const articleElement = document.querySelector('.article__body');
   if (articleElement && !window.originalBody) {
     window.originalBody = articleElement.innerHTML;
     console.log("Original content stored.");
@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Translate button clicked.");
 
     const targetLanguage = document.getElementById('language-dropdown').value;
-    const articleElement = document.querySelector('article');
+    const articleElement = document.querySelector('.article__body');
     const dropdown = document.getElementById('language-dropdown');
     const translateButton = document.querySelector('button');
     const loadingMessage = document.getElementById('loading-message');
