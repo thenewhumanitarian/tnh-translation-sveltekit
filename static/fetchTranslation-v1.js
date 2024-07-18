@@ -12,50 +12,55 @@ document.addEventListener("DOMContentLoaded", () => {
     // Add more languages as needed
   ];
 
-  // Create dropdown menu
-  const dropdown = document.createElement('select');
-  dropdown.id = 'language-dropdown';
-  dropdown.style.width = '100%';
-  languages.forEach(language => {
-    const option = document.createElement('option');
-    option.value = language.code;
-    option.textContent = language.name;
-    dropdown.appendChild(option);
-  });
+  function createDropdownAndButton() {
+    // Create dropdown menu
+    const dropdown = document.createElement('select');
+    dropdown.id = 'language-dropdown';
+    dropdown.style.width = '100%';
+    languages.forEach(language => {
+      const option = document.createElement('option');
+      option.value = language.code;
+      option.textContent = language.name;
+      dropdown.appendChild(option);
+    });
 
-  // Create translate button
-  const translateButton = document.createElement('button');
-  translateButton.textContent = 'Translate';
-  translateButton.style.padding = '0.9rem';
-  translateButton.style.cursor = 'pointer';
-  translateButton.addEventListener('click', handleTranslation);
+    // Create translate button
+    const translateButton = document.createElement('button');
+    translateButton.textContent = 'Translate';
+    translateButton.style.padding = '0.9rem';
+    translateButton.style.cursor = 'pointer';
+    translateButton.addEventListener('click', handleTranslation);
 
-  // Create loading message
-  const loadingMessage = document.createElement('p');
-  loadingMessage.id = 'loading-message';
-  loadingMessage.textContent = 'Loading...';
-  loadingMessage.style.display = 'none'; // Hide it initially
+    // Create a container for the dropdown and button
+    const container = document.createElement('div');
+    container.style.marginBottom = '1em';
+    container.style.display = 'flex';
+    container.style.gap = '1rem';
+    container.style.width = '100';
+    container.style.justifyContent = 'end';
+    container.style.alignItems = 'center';
+    container.appendChild(dropdown);
+    container.appendChild(translateButton);
 
-  // Create a container for the dropdown, button, and loading message
-  const container = document.createElement('div');
-  container.style.marginBottom = '1em';
-  container.style.display = 'flex';
-  container.style.gap = '1rem';
-  container.style.width = '100%';
-  container.style.justifyContent = 'end';
-  container.style.alignItems = 'center';
-  container.appendChild(dropdown);
-  container.appendChild(translateButton);
-  container.appendChild(loadingMessage);
+    return container;
+  }
 
-  // Prepend the container to the .article__body element
-  const articleBodyElement = document.querySelector('.article__body');
-  if (articleBodyElement) {
-    articleBodyElement.prepend(container);
-    console.log("Dropdown and button added to the .article__body.");
-  } else {
-    console.error('.article__body element not found.');
-    return;
+  function prependDropdownAndButton() {
+    const articleBodyElement = document.querySelector('.article__body');
+    if (articleBodyElement) {
+      // Remove existing dropdown and button if present
+      const existingContainer = document.getElementById('dropdown-container');
+      if (existingContainer) {
+        existingContainer.remove();
+      }
+
+      const container = createDropdownAndButton();
+      container.id = 'dropdown-container';
+      articleBodyElement.prepend(container);
+      console.log("Dropdown and button added to the .article__body.");
+    } else {
+      console.error('.article__body element not found.');
+    }
   }
 
   // Store the original content of the <article> tag
@@ -78,6 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Display loading message
+    const loadingMessage = document.createElement('div');
+    loadingMessage.textContent = 'Loading...';
+    loadingMessage.style.marginTop = '1em';
+    articleElement.appendChild(loadingMessage);
+
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
@@ -88,8 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
       password: 'tnh',
       lastUpdated: lastUpdated
     };
-
-    loadingMessage.style.display = 'block'; // Show loading message
 
     try {
       const response = await fetch('https://tnh-translation.vercel.app/api/translate-html', {
@@ -107,10 +116,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Replace the content of the article with the translated content
       articleElement.innerHTML = data.translation;
+
+      // Re-add the dropdown and button
+      prependDropdownAndButton();
     } catch (error) {
       console.error('Error during translation process:', error);
     } finally {
-      loadingMessage.style.display = 'none'; // Hide loading message
+      // Remove loading message
+      loadingMessage.remove();
     }
   }
+
+  // Initial setup
+  prependDropdownAndButton();
 });
