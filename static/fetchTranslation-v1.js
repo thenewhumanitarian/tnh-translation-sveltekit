@@ -1,61 +1,81 @@
-async function fetchTranslation() {
-  const targetLanguage = 'de';
-  const password = 'tnh';
+document.addEventListener("DOMContentLoaded", () => {
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'de', name: 'German' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'it', name: 'Italian' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'ht', name: 'Creole' }
+    // Add more languages as needed
+  ];
 
-  // Extract the node ID
-  const linkElement = document.querySelector('link[rel="shortlink"]');
-  if (!linkElement) {
-    console.error('Node ID not found.');
-    return;
+  // Create dropdown menu
+  const dropdown = document.createElement('select');
+  dropdown.id = 'language-dropdown';
+  languages.forEach(language => {
+    const option = document.createElement('option');
+    option.value = language.code;
+    option.textContent = language.name;
+    dropdown.appendChild(option);
+  });
+
+  // Create translate button
+  const translateButton = document.createElement('button');
+  translateButton.textContent = 'Translate';
+  translateButton.addEventListener('click', handleTranslation);
+
+  // Prepend the dropdown and button to the body
+  const container = document.createElement('div');
+  container.style.marginBottom = '1em';
+  container.appendChild(dropdown);
+  container.appendChild(translateButton);
+  document.body.prepend(container);
+
+  // Store the original content of the <article> tag
+  const articleElement = document.querySelector('article');
+  if (articleElement) {
+    window.originalBody = articleElement.innerHTML;
   }
-  const nodeIdMatch = linkElement.href.match(/node\/(\d+)/);
-  if (!nodeIdMatch) {
-    console.error('Node ID not found.');
-    return;
-  }
-  const articleId = nodeIdMatch[1];
 
-  // Select the HTML content
-  const contentElement = document.querySelector('.field-name-body.flow');
-  if (!contentElement) {
-    console.error('Content element not found.');
-    return;
-  }
-  const htmlContent = contentElement.innerHTML;
+  async function handleTranslation() {
+    const targetLanguage = document.getElementById('language-dropdown').value;
+    const articleElement = document.querySelector('article');
 
-  // Prepare the payload
-  const payload = {
-    articleId,
-    targetLanguage,
-    htmlContent,
-    password
-  };
-
-  try {
-    // Make the request
-    const response = await fetch('https://tnh-translation.vercel.app/api/translate-html', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    // Handle the response
-    if (!response.ok) {
-      throw new Error(`Failed to fetch translation: ${response.statusText}`);
+    if (!articleElement) {
+      console.error('Article element not found.');
+      return;
     }
 
-    const data = await response.json();
-    console.log('Translation response:', data);
+    const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
+    const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    // Replace the content with the translated HTML
-    contentElement.innerHTML = data.translation;
+    const payload = {
+      articleId: nodeId,
+      targetLanguage: targetLanguage,
+      htmlContent: window.originalBody,
+      password: 'tnh',
+      lastUpdated: lastUpdated
+    };
 
-  } catch (error) {
-    console.error('Error:', error.message);
+    try {
+      const response = await fetch('https://tnh-translation.vercel.app/api/translate-html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch translation');
+      }
+
+      const data = await response.json();
+      console.log('Translation response:', data);
+
+      // Replace the content of the article with the translated content
+      articleElement.innerHTML = data.translation;
+    } catch (error) {
+      console.error('Error during translation process:', error);
+    }
   }
-}
-
-// Run the fetchTranslation function when the script loads
-fetchTranslation();
+});
