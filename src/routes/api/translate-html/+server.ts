@@ -1,12 +1,10 @@
-import { PASSWORD } from '$env/static/private';
 import type { RequestHandler } from '@sveltejs/kit';
+import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
 
 function cleanHtml(html: string): string {
-  // Remove dir="ltr" attributes
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
-  // Remove <div id="mct-script"></div> elements
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
 }
@@ -49,7 +47,7 @@ function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
 }
 
 async function translateLongHtmlContent(htmlContent: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
-  const chunkSize = 2000; // Define chunk size
+  const chunkSize = 2000;
   const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
 
   const translatedChunks = await Promise.all(
@@ -66,18 +64,23 @@ async function translateLongHtmlContent(htmlContent: string, srcLanguage: string
 }
 
 export const POST: RequestHandler = async ({ request }) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*', // Allow all origins for CORS
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password } = await request.json();
 
     if (password !== PASSWORD) {
-      return new Response(JSON.stringify({ error: 'Invalid password' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Invalid password' }), { status: 403, headers });
     }
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID and target language
     const { data, error } = await supabase
       .from('translations')
       .select('*')
@@ -86,7 +89,7 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq('target_language', targetLanguage)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
+    if (error && error.code !== 'PGRST116') {
       console.error(`Supabase error: ${error.message}`);
       console.error(`Supabase error details: ${JSON.stringify(error, null, 2)}`);
       throw new Error(`Supabase error: ${error.message}`);
@@ -94,13 +97,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (data) {
       console.log('Translation found in Supabase');
-      // Return existing translation
-      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
+      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers });
     }
 
     console.log('Translation not found in Supabase, using ChatGPT');
 
-    // If translation doesn't exist, use ChatGPT to translate
     let translatedHtml;
     if (cleanedHtmlContent.length > 2000) {
       translatedHtml = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
@@ -110,12 +111,9 @@ export const POST: RequestHandler = async ({ request }) => {
         model: gptModel
       });
       translatedHtml = chatCompletion.choices[0].message.content;
-
-      // Log token usage
       console.log('Token usage:', chatCompletion.usage);
     }
 
-    // Store the new translation in Supabase
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
@@ -129,10 +127,19 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
+    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
   }
+};
+
+export const OPTIONS: RequestHandler = async () => {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    }
+  });
 };

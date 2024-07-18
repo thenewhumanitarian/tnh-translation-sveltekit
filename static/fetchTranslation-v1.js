@@ -43,7 +43,7 @@ async function fetchTranslation() {
 
     // Handle the response
     if (!response.ok) {
-      throw new Error('Failed to fetch translation');
+      throw new Error(`Failed to fetch translation: ${response.statusText}`);
     }
 
     const data = await response.json();
