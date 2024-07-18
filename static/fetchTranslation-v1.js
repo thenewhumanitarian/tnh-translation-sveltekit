@@ -48,6 +48,10 @@ async function fetchTranslation() {
 
     const data = await response.json();
     console.log('Translation response:', data);
+
+    // Replace the content with the translated HTML
+    contentElement.innerHTML = data.translation;
+
   } catch (error) {
     console.error('Error:', error.message);
   }
