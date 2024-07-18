@@ -94,7 +94,7 @@ export const POST: RequestHandler = async ({ request }) => {
     if (data) {
       console.log('Translation found in Supabase');
       // Return existing translation
-      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
+      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
     console.log('Translation not found in Supabase, using ChatGPT');
@@ -129,9 +129,20 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
-    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200 });
+    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
+};
+
+export const OPTIONS: RequestHandler = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    }
+  });
 };
