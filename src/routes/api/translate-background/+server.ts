@@ -12,17 +12,25 @@ function cleanHtml(html: string): string {
 function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
+  let pOpen = false;
   const regex = /(<\/?[^>]+>)/g;
   let lastIndex = 0;
 
   html.replace(regex, (match, tag, index) => {
     const textPart = html.substring(lastIndex, index);
-    if (currentChunk.length + textPart.length > chunkSize && currentChunk) {
+    currentChunk += textPart + match;
+    lastIndex = index + match.length;
+
+    if (tag.startsWith('<p')) {
+      pOpen = true;
+    } else if (tag.startsWith('</p>')) {
+      pOpen = false;
+    }
+
+    if (currentChunk.length >= chunkSize && !pOpen) {
       chunks.push(currentChunk);
       currentChunk = '';
     }
-    currentChunk += textPart + match;
-    lastIndex = index + match.length;
   });
 
   const remainingText = html.substring(lastIndex);
