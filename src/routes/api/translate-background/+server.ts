@@ -3,34 +3,44 @@ import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
 
-interface HtmlChunk {
-  tag: string;
-  content: string;
-}
-
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
 }
 
-function splitHtmlIntoChunks(html: string): HtmlChunk[] {
-  const chunks: HtmlChunk[] = [];
+function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
+  const chunks: string[] = [];
+  let currentChunk = '';
   const regex = /(<\/?[^>]+>)/g;
   let lastIndex = 0;
 
   html.replace(regex, (match, tag, index) => {
     const textPart = html.substring(lastIndex, index);
-    if (textPart.trim()) {
-      chunks.push({ tag: '', content: textPart });
+    if (currentChunk.length + textPart.length > chunkSize) {
+      chunks.push(currentChunk);
+      currentChunk = '';
     }
-    chunks.push({ tag: match, content: '' });
+    currentChunk += textPart;
+    if (currentChunk.length + match.length > chunkSize) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+    currentChunk += match;
     lastIndex = index + match.length;
   });
 
   const remainingText = html.substring(lastIndex);
-  if (remainingText.trim()) {
-    chunks.push({ tag: '', content: remainingText });
+  if (remainingText.length > 0) {
+    if (currentChunk.length + remainingText.length > chunkSize) {
+      chunks.push(currentChunk);
+      chunks.push(remainingText);
+    } else {
+      currentChunk += remainingText;
+      chunks.push(currentChunk);
+    }
+  } else if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
   }
 
   return chunks;
@@ -41,7 +51,7 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
     messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
     model: gptModel
   });
-
+ 
   return chatCompletion.choices[0].message.content;
 }
 
@@ -50,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
 
     if (password !== PASSWORD) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
@@ -82,17 +92,14 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const chunks = splitHtmlIntoChunks(cleanedHtmlContent);
+    const chunkSize = 2000; // Define chunk size
+    const chunks = splitHtmlIntoChunks(cleanedHtmlContent, chunkSize);
 
     console.log(`Total chunks: ${chunks.length}`);
 
     const translationPromises = chunks.map((chunk, index) => {
-      if (chunk.tag) {
-        return Promise.resolve(chunk.tag);
-      } else {
-        console.log(`Translating chunk ${index + 1}/${chunks.length}`);
-        return translateHtmlChunk(chunk.content, srcLanguage, targetLanguage, gptModel);
-      }
+      console.log(`Translating chunk ${index + 1}/${chunks.length}`);
+      return translateHtmlChunk(chunk, srcLanguage, targetLanguage, gptModel);
     });
 
     const translatedChunks = await Promise.all(translationPromises);
