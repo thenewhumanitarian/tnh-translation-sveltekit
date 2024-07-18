@@ -17,29 +17,19 @@ function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
 
   html.replace(regex, (match, tag, index) => {
     const textPart = html.substring(lastIndex, index);
-    if (currentChunk.length + textPart.length > chunkSize) {
+    if (currentChunk.length + textPart.length > chunkSize && currentChunk) {
       chunks.push(currentChunk);
       currentChunk = '';
     }
-    currentChunk += textPart;
-    if (currentChunk.length + match.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += match;
+    currentChunk += textPart + match;
     lastIndex = index + match.length;
   });
 
   const remainingText = html.substring(lastIndex);
   if (remainingText.length > 0) {
-    if (currentChunk.length + remainingText.length > chunkSize) {
-      chunks.push(currentChunk);
-      chunks.push(remainingText);
-    } else {
-      currentChunk += remainingText;
-      chunks.push(currentChunk);
-    }
-  } else if (currentChunk.length > 0) {
+    currentChunk += remainingText;
+  }
+  if (currentChunk.length > 0) {
     chunks.push(currentChunk);
   }
 
