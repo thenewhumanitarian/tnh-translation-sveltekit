@@ -53,7 +53,7 @@ async function translateLongHtmlContent(htmlContent: string, srcLanguage: string
   const translatedChunks = await Promise.all(
     chunks.map(async (chunk) => {
       const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
+        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags but excluding elements with class names "exclude-from-translation":\n\n${chunk}` }],
         model: gptModel
       });
       return chatCompletion.choices[0].message.content;
@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID and target language
+    // Check if translation exists in Supabase by matching the article ID, target language, and last updated timestamp
     const { data, error } = await supabase
       .from('translations')
       .select('*')
@@ -105,7 +105,7 @@ export const POST: RequestHandler = async ({ request }) => {
       translatedHtml = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
     } else {
       const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${cleanedHtmlContent}` }],
+        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags but excluding elements with class names "meta-list, article__author-location, image__attr, author__name, article__actions, region-breadcrumb or article__extras.":\n\n${cleanedHtmlContent}` }],
         model: gptModel
       });
       translatedHtml = chatCompletion.choices[0].message.content;
