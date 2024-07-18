@@ -11,9 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'ht', name: 'Creole' }
   ];
 
-  // Function to create and prepend the dropdown menu and button
   function createTranslationControls() {
-    // Create dropdown menu
     const dropdown = document.createElement('select');
     dropdown.id = 'language-dropdown';
     dropdown.style.width = '100%';
@@ -24,20 +22,17 @@ document.addEventListener("DOMContentLoaded", () => {
       dropdown.appendChild(option);
     });
 
-    // Create translate button
     const translateButton = document.createElement('button');
     translateButton.textContent = 'Translate';
     translateButton.style.padding = '0.9rem';
     translateButton.style.cursor = 'pointer';
     translateButton.addEventListener('click', handleTranslation);
 
-    // Create loading message
     const loadingMessage = document.createElement('span');
     loadingMessage.id = 'loading-message';
     loadingMessage.style.display = 'none';
     loadingMessage.textContent = 'Translating...';
 
-    // Create a container for the dropdown and button
     const container = document.createElement('div');
     container.style.marginBottom = '1em';
     container.style.display = 'flex';
@@ -52,8 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return container;
   }
 
-  // Store the original content of the <article> tag if not already stored
-  const articleElement = document.querySelector('.article__body');
+  const articleElement = document.querySelector('article');
   if (articleElement && !window.originalBody) {
     window.originalBody = articleElement.innerHTML;
     console.log("Original content stored.");
@@ -61,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error('Article element not found.');
   }
 
-  // Append the translation controls on document load
   const articleBodyElement = document.querySelector('.article__body');
   if (articleBodyElement) {
     articleBodyElement.prepend(createTranslationControls());
@@ -74,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Translate button clicked.");
 
     const targetLanguage = document.getElementById('language-dropdown').value;
-    const articleElement = document.querySelector('.article__body');
+    const articleElement = document.querySelector('article');
     const dropdown = document.getElementById('language-dropdown');
     const translateButton = document.querySelector('button');
     const loadingMessage = document.getElementById('loading-message');
@@ -84,7 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Disable dropdown and button, show loading message
     dropdown.disabled = true;
     translateButton.disabled = true;
     translateButton.style.display = 'none';
@@ -102,32 +94,55 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const response = await fetch('https://tnh-translation.vercel.app/api/translate-article', {
+      await fetch('/api/translate-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch translation');
+      // Polling for translation status
+      let translationComplete = false;
+      while (!translationComplete) {
+        const statusPayload = {
+          articleId: nodeId,
+          targetLanguage: targetLanguage,
+          lastUpdated: lastUpdated
+        };
+
+        const response = await fetch('/api/translation-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(statusPayload)
+        });
+
+        const { status, translation } = await response.json();
+
+        if (response.status === 200 && translation) {
+          console.log('Translation complete:', translation);
+          articleElement.innerHTML = translation;
+          translationComplete = true;
+        } else if (response.status === 202) {
+          console.log('Translation in progress...');
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
+        } else {
+          console.error('Error checking translation status:', status);
+          alert('Error translating content. Please try again later.');
+          translationComplete = true; // Exit polling loop on error
+        }
       }
 
-      const data = await response.json();
-      console.log('Translation response:', data);
+      dropdown.disabled = false;
+      translateButton.disabled = false;
+      translateButton.style.display = 'block';
+      loadingMessage.style.display = 'none';
 
-      // Replace the content of the article with the translated content
-      articleElement.innerHTML = data.translation;
-      
     } catch (error) {
-      console.error('Error during translation process:', error);
-    } finally {
-      // Recreate and prepend the translation controls
-      articleElement.querySelector('.article__body').prepend(createTranslationControls());
-      // Re-enable dropdown and button, hide loading message
+      console.error('Error translating content:', error.message);
+      alert('Error translating content. Please try again later.');
       dropdown.disabled = false;
       translateButton.disabled = false;
       translateButton.style.display = 'block';
       loadingMessage.style.display = 'none';
     }
   }
-});
+};

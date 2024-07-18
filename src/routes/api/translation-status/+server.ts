@@ -1,8 +1,8 @@
-// /api/translation-status.js
+import type { RequestHandler } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
-export const POST = async (req, res) => {
-  const { articleId, srcLanguage = 'en', targetLanguage, lastUpdated } = req.body;
+export const POST: RequestHandler = async ({ request }) => {
+  const { articleId, srcLanguage = 'en', targetLanguage, lastUpdated } = await request.json();
 
   try {
     const { data, error } = await supabase
@@ -21,13 +21,13 @@ export const POST = async (req, res) => {
     }
 
     if (data) {
-      return res.status(200).json({ translation: data.translation, source: 'supabase' });
+      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200 });
     } else {
-      return res.status(202).json({ status: 'Processing' });
+      return new Response(JSON.stringify({ status: 'Processing' }), { status: 202 });
     }
 
   } catch (error) {
     console.error(`Error checking translation status: ${error.message}`);
-    res.status(500).json({ error: error.message });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 };
