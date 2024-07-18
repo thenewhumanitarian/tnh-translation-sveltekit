@@ -65,7 +65,7 @@ async function storeTempTranslation(articleId: string, targetLanguage: string, c
   }
 }
 
-async function finalizeTranslation(articleId: string, targetLanguage: string, lastUpdated: string) {
+async function finalizeTranslation(articleId: string, targetLanguage: string, lastUpdated: string, originalString: string) {
   const { data, error } = await supabase
     .from('temp_translations')
     .select('translation')
@@ -84,7 +84,7 @@ async function finalizeTranslation(articleId: string, targetLanguage: string, la
 
   const { error: insertError } = await supabase
     .from('translations')
-    .insert([{ article_id: articleId, src_language: 'en', target_language: targetLanguage, translation: fullTranslation, last_updated: lastUpdated }]);
+    .insert([{ article_id: articleId, src_language: 'en', target_language: targetLanguage, translation: fullTranslation, gpt_model: 'gpt-3.5-turbo', last_updated: lastUpdated, original_string: originalString }]);
 
   if (insertError) {
     console.error(`Supabase insert error: ${insertError.message}`);
@@ -153,7 +153,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }));
 
     // Finalize translation
-    const fullTranslation = await finalizeTranslation(articleId, targetLanguage, lastUpdated);
+    const fullTranslation = await finalizeTranslation(articleId, targetLanguage, lastUpdated, cleanedHtmlContent);
 
     // Return the new translation
     return new Response(JSON.stringify({ translation: fullTranslation, source: 'chatgpt', requestData: { articleId, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });

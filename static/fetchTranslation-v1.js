@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'it', name: 'Italian' },
     { code: 'ar', name: 'Arabic' },
     { code: 'ht', name: 'Creole' }
-    // Add more languages as needed
   ];
 
   // Create dropdown menu
@@ -102,7 +101,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Re-add the dropdown and button to the new content
       articleElement.prepend(container);
-      console.log("Dropdown and button re-added to the translated content.");
 
     } catch (error) {
       console.error('Error during translation process:', error);
