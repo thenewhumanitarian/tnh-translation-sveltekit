@@ -46,80 +46,21 @@ function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
   return chunks;
 }
 
-async function translateChunk(chunk: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
-  const chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
-    model: gptModel
-  });
-  return chatCompletion.choices[0].message.content;
-}
-
-async function processTranslation(articleId: string, srcLanguage: string, targetLanguage: string, htmlContent: string, gptModel: string, lastUpdated: string) {
+async function translateLongHtmlContent(htmlContent: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string[]> {
   const chunkSize = 2000; // Define chunk size
   const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
-  const totalChunks = chunks.length;
 
-  await Promise.all(
-    chunks.map(async (chunk, index) => {
-      const translatedChunk = await translateChunk(chunk, srcLanguage, targetLanguage, gptModel);
-
-      const { error: insertError } = await supabase
-        .from('temp_translations')
-        .insert([
-          { article_id: articleId, chunk_index: index, target_language: targetLanguage, translation: translatedChunk, last_updated: lastUpdated }
-        ]);
-
-      if (insertError) {
-        console.error(`Supabase insert error: ${insertError.message}`);
-        console.error(`Supabase insert error details: ${JSON.stringify(insertError, null, 2)}`);
-        throw new Error(`Supabase insert error: ${insertError.message}`);
-      }
-
-      console.log(`Chunk ${index + 1}/${totalChunks} translation stored successfully`);
+  const translatedChunks = await Promise.all(
+    chunks.map(async (chunk) => {
+      const chatCompletion = await openai.chat.completions.create({
+        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
+        model: gptModel
+      });
+      return chatCompletion.choices[0].message.content;
     })
   );
 
-  const { data: tempTranslations, error: fetchError } = await supabase
-    .from('temp_translations')
-    .select('translation')
-    .eq('article_id', articleId)
-    .eq('target_language', targetLanguage)
-    .order('chunk_index', { ascending: true });
-
-  if (fetchError) {
-    console.error(`Supabase fetch error: ${fetchError.message}`);
-    console.error(`Supabase fetch error details: ${JSON.stringify(fetchError, null, 2)}`);
-    throw new Error(`Supabase fetch error: ${fetchError.message}`);
-  }
-
-  const combinedTranslation = tempTranslations.map((chunk: { translation: string }) => chunk.translation).join('');
-
-  const { error: insertFinalError } = await supabase
-    .from('translations')
-    .insert([
-      { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: combinedTranslation, last_updated: lastUpdated }
-    ]);
-
-  if (insertFinalError) {
-    console.error(`Supabase insert error: ${insertFinalError.message}`);
-    console.error(`Supabase insert error details: ${JSON.stringify(insertFinalError, null, 2)}`);
-    throw new Error(`Supabase insert error: ${insertFinalError.message}`);
-  }
-
-  const { error: deleteError } = await supabase
-    .from('temp_translations')
-    .delete()
-    .eq('article_id', articleId)
-    .eq('target_language', targetLanguage);
-
-  if (deleteError) {
-    console.error(`Supabase delete error: ${deleteError.message}`);
-    console.error(`Supabase delete error details: ${JSON.stringify(deleteError, null, 2)}`);
-    throw new Error(`Supabase delete error: ${deleteError.message}`);
-  }
-
-  console.log(`Translation finalized and stored in translations table`);
-  return combinedTranslation;
+  return translatedChunks;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -134,7 +75,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID and target language
+    // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
       .from('translations')
       .select('*')
@@ -158,10 +99,57 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation not found in Supabase, using ChatGPT');
 
-    // If translation doesn't exist, translate and store chunks
-    const translatedHtml = await processTranslation(articleId, srcLanguage, targetLanguage, cleanedHtmlContent, gptModel, lastUpdated);
+    // If translation doesn't exist, use ChatGPT to translate
+    const translatedChunks = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
 
-    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    // Store the chunks in the temp_translations table
+    await Promise.all(translatedChunks.map((chunk, index) => {
+      return supabase
+        .from('temp_translations')
+        .insert([
+          { article_id: articleId, chunk_index: index, target_language: targetLanguage, translation_chunk: chunk }
+        ]);
+    }));
+
+    // Fetch the translated chunks, stitch them together, and store in the translations table
+    const { data: tempData, error: tempError } = await supabase
+      .from('temp_translations')
+      .select('*')
+      .eq('article_id', articleId)
+      .eq('target_language', targetLanguage)
+      .order('chunk_index', { ascending: true });
+
+    if (tempError) {
+      console.error(`Supabase temp translations fetch error: ${tempError.message}`);
+      console.error(`Supabase temp translations fetch error details: ${JSON.stringify(tempError, null, 2)}`);
+      throw new Error(`Supabase temp translations fetch error: ${tempError.message}`);
+    }
+
+    const finalTranslation = tempData.map(item => item.translation_chunk).join('');
+
+    // Store the final translation in the translations table
+    const { error: insertError } = await supabase
+      .from('translations')
+      .insert([
+        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: finalTranslation, gpt_model: gptModel, last_updated: lastUpdated }
+      ]);
+
+    if (insertError) {
+      console.error(`Supabase insert error: ${insertError.message}`);
+      console.error(`Supabase insert error details: ${JSON.stringify(insertError, null, 2)}`);
+      throw new Error(`Supabase insert error: ${insertError.message}`);
+    }
+
+    // Remove temp translations
+    await supabase
+      .from('temp_translations')
+      .delete()
+      .eq('article_id', articleId)
+      .eq('target_language', targetLanguage);
+
+    console.log('Translation successful and stored in Supabase');
+    // Return the new translation
+    return new Response(JSON.stringify({ translation: finalTranslation, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
