@@ -9,49 +9,12 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
-  const chunks: string[] = [];
-  let currentChunk = '';
-  const regex = /(<\/?[^>]+>)/g;
-  let lastIndex = 0;
-
-  html.replace(regex, (match, tag, index) => {
-    const textPart = html.substring(lastIndex, index);
-    if (currentChunk.length + textPart.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += textPart;
-    if (currentChunk.length + match.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += match;
-    lastIndex = index + match.length;
-  });
-
-  const remainingText = html.substring(lastIndex);
-  if (remainingText.length > 0) {
-    if (currentChunk.length + remainingText.length > chunkSize) {
-      chunks.push(currentChunk);
-      chunks.push(remainingText);
-    } else {
-      currentChunk += remainingText;
-      chunks.push(currentChunk);
-    }
-  } else if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
-  }
-
-  return chunks;
-}
-
-async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
+async function translateHtml(htmlContent: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
   const chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
+    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${htmlContent}` }],
     model: gptModel
   });
- 
+
   return chatCompletion.choices[0].message.content;
 }
 
@@ -92,19 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const chunkSize = 2000; // Define chunk size
-    const chunks = splitHtmlIntoChunks(cleanedHtmlContent, chunkSize);
-
-    console.log(`Total chunks: ${chunks.length}`);
-
-    const translationPromises = chunks.map((chunk, index) => {
-      console.log(`Translating chunk ${index + 1}/${chunks.length}`);
-      return translateHtmlChunk(chunk, srcLanguage, targetLanguage, gptModel);
-    });
-
-    const translatedChunks = await Promise.all(translationPromises);
-
-    const finalTranslation = translatedChunks.join('');
+    const finalTranslation = await translateHtml(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
 
     // Log original string to ensure it's correct
     console.log('Original String:', cleanedHtmlContent);
