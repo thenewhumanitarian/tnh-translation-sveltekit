@@ -3,42 +3,34 @@ import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
 
+interface HtmlChunk {
+  tag: string;
+  content: string;
+}
+
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
 }
 
-function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
-  const chunks: string[] = [];
-  let currentChunk = '';
-  let pOpen = false;
+function splitHtmlIntoChunks(html: string): HtmlChunk[] {
+  const chunks: HtmlChunk[] = [];
   const regex = /(<\/?[^>]+>)/g;
   let lastIndex = 0;
 
   html.replace(regex, (match, tag, index) => {
     const textPart = html.substring(lastIndex, index);
-    currentChunk += textPart + match;
+    if (textPart.trim()) {
+      chunks.push({ tag: '', content: textPart });
+    }
+    chunks.push({ tag: match, content: '' });
     lastIndex = index + match.length;
-
-    if (tag.startsWith('<p')) {
-      pOpen = true;
-    } else if (tag.startsWith('</p>')) {
-      pOpen = false;
-    }
-
-    if (currentChunk.length >= chunkSize && !pOpen) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
   });
 
   const remainingText = html.substring(lastIndex);
-  if (remainingText.length > 0) {
-    currentChunk += remainingText;
-  }
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
+  if (remainingText.trim()) {
+    chunks.push({ tag: '', content: remainingText });
   }
 
   return chunks;
@@ -90,14 +82,17 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const chunkSize = 2000; // Define chunk size
-    const chunks = splitHtmlIntoChunks(cleanedHtmlContent, chunkSize);
+    const chunks = splitHtmlIntoChunks(cleanedHtmlContent);
 
     console.log(`Total chunks: ${chunks.length}`);
 
     const translationPromises = chunks.map((chunk, index) => {
-      console.log(`Translating chunk ${index + 1}/${chunks.length}`);
-      return translateHtmlChunk(chunk, srcLanguage, targetLanguage, gptModel);
+      if (chunk.tag) {
+        return Promise.resolve(chunk.tag);
+      } else {
+        console.log(`Translating chunk ${index + 1}/${chunks.length}`);
+        return translateHtmlChunk(chunk.content, srcLanguage, targetLanguage, gptModel);
+      }
     });
 
     const translatedChunks = await Promise.all(translationPromises);
