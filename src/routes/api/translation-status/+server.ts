@@ -1,33 +1,35 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
-export const POST: RequestHandler = async ({ request }) => {
-  const { articleId, srcLanguage = 'en', targetLanguage, lastUpdated } = await request.json();
-
+export const GET: RequestHandler = async ({ url }) => {
   try {
+    const articleId = url.searchParams.get('articleId');
+    const targetLanguage = url.searchParams.get('targetLanguage');
+
+    if (!articleId || !targetLanguage) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from('translations')
       .select('*')
       .eq('article_id', articleId)
-      .eq('src_language', srcLanguage)
       .eq('target_language', targetLanguage)
-      .eq('last_updated', lastUpdated)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
       console.error(`Supabase error: ${error.message}`);
       console.error(`Supabase error details: ${JSON.stringify(error, null, 2)}`);
       throw new Error(`Supabase error: ${error.message}`);
     }
 
-    if (data) {
-      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200 });
-    } else {
-      return new Response(JSON.stringify({ status: 'Processing' }), { status: 202 });
+    if (!data) {
+      return new Response(JSON.stringify({ status: 'processing' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
+    return new Response(JSON.stringify({ status: 'completed', translation: data.translation }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
-    console.error(`Error checking translation status: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error(`Error during translation status check: ${error.message}`);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 };
