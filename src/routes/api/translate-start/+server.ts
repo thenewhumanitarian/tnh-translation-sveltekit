@@ -9,60 +9,6 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
-  const chunks: string[] = [];
-  let currentChunk = '';
-  const regex = /(<\/?[^>]+>)/g;
-  let lastIndex = 0;
-
-  html.replace(regex, (match, tag, index) => {
-    const textPart = html.substring(lastIndex, index);
-    if (currentChunk.length + textPart.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += textPart;
-    if (currentChunk.length + match.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += match;
-    lastIndex = index + match.length;
-  });
-
-  const remainingText = html.substring(lastIndex);
-  if (remainingText.length > 0) {
-    if (currentChunk.length + remainingText.length > chunkSize) {
-      chunks.push(currentChunk);
-      chunks.push(remainingText);
-    } else {
-      currentChunk += remainingText;
-      chunks.push(currentChunk);
-    }
-  } else if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
-  }
-
-  return chunks;
-}
-
-async function translateLongHtmlContent(htmlContent: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string[]> {
-  const chunkSize = 2000; // Define chunk size
-  const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
-
-  const translatedChunks = await Promise.all(
-    chunks.map(async (chunk) => {
-      const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
-        model: gptModel
-      });
-      return chatCompletion.choices[0].message.content;
-    })
-  );
-
-  return translatedChunks;
-}
-
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
@@ -100,34 +46,12 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const translatedChunks = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
-
-    // Store each chunk in the temp_translations table
-    const chunkPromises = translatedChunks.map((chunk, index) => {
-      return supabase
-        .from('temp_translations')
-        .insert([
-          { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, chunk_index: index, translation_chunk: chunk, last_updated: lastUpdated }
-        ]);
+    const chatCompletion = await openai.chat.completions.create({
+      messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${cleanedHtmlContent}` }],
+      model: gptModel
     });
-    await Promise.all(chunkPromises);
 
-    // Fetch all chunks from temp_translations and stitch them together
-    const { data: tempData, error: tempError } = await supabase
-      .from('temp_translations')
-      .select('*')
-      .eq('article_id', articleId)
-      .eq('src_language', srcLanguage)
-      .eq('target_language', targetLanguage)
-      .order('chunk_index', { ascending: true });
-
-    if (tempError) {
-      console.error(`Supabase temp fetch error: ${tempError.message}`);
-      console.error(`Supabase temp fetch error details: ${JSON.stringify(tempError, null, 2)}`);
-      throw new Error(`Supabase temp fetch error: ${tempError.message}`);
-    }
-
-    const finalTranslation = tempData.map(chunk => chunk.translation_chunk).join('');
+    const finalTranslation = chatCompletion.choices[0].message.content;
 
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
@@ -140,20 +64,6 @@ export const POST: RequestHandler = async ({ request }) => {
       console.error(`Supabase insert error: ${insertError.message}`);
       console.error(`Supabase insert error details: ${JSON.stringify(insertError, null, 2)}`);
       throw new Error(`Supabase insert error: ${insertError.message}`);
-    }
-
-    // Clean up temp_translations table
-    const { error: deleteError } = await supabase
-      .from('temp_translations')
-      .delete()
-      .eq('article_id', articleId)
-      .eq('src_language', srcLanguage)
-      .eq('target_language', targetLanguage);
-
-    if (deleteError) {
-      console.error(`Supabase delete error: ${deleteError.message}`);
-      console.error(`Supabase delete error details: ${JSON.stringify(deleteError, null, 2)}`);
-      throw new Error(`Supabase delete error: ${deleteError.message}`);
     }
 
     console.log('Translation successful and stored in Supabase');

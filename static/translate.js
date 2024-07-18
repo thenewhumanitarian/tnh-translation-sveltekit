@@ -9,10 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'it', name: 'Italian' },
     { code: 'ar', name: 'Arabic' },
     { code: 'ht', name: 'Creole' }
-    // Add more languages as needed
   ];
 
-  function createDropdown() {
+  // Function to create and prepend the dropdown menu and button
+  function createTranslationControls() {
     // Create dropdown menu
     const dropdown = document.createElement('select');
     dropdown.id = 'language-dropdown';
@@ -31,6 +31,12 @@ document.addEventListener("DOMContentLoaded", () => {
     translateButton.style.cursor = 'pointer';
     translateButton.addEventListener('click', handleTranslation);
 
+    // Create loading message
+    const loadingMessage = document.createElement('span');
+    loadingMessage.id = 'loading-message';
+    loadingMessage.style.display = 'none';
+    loadingMessage.textContent = 'Translating...';
+
     // Create a container for the dropdown and button
     const container = document.createElement('div');
     container.style.marginBottom = '1em';
@@ -41,51 +47,27 @@ document.addEventListener("DOMContentLoaded", () => {
     container.style.alignItems = 'center';
     container.appendChild(dropdown);
     container.appendChild(translateButton);
+    container.appendChild(loadingMessage);
 
     return container;
   }
 
-  function addDropdown() {
-    const articleBodyElement = document.querySelector('.article__body');
-    if (articleBodyElement) {
-      const existingContainer = articleBodyElement.querySelector('#language-dropdown')?.parentElement;
-      if (existingContainer) {
-        existingContainer.remove();
-      }
-      const container = createDropdown();
-      articleBodyElement.prepend(container);
-      console.log("Dropdown and button added to the .article__body.");
-    } else {
-      console.error('.article__body element not found.');
-      return;
-    }
-  }
-
-  function showLoading() {
-    const articleBodyElement = document.querySelector('.article__body');
-    if (articleBodyElement) {
-      const loadingMessage = document.createElement('p');
-      loadingMessage.id = 'loading-message';
-      loadingMessage.textContent = 'Loading...';
-      loadingMessage.style.textAlign = 'center';
-      articleBodyElement.prepend(loadingMessage);
-    }
-  }
-
-  function hideLoading() {
-    const loadingMessage = document.getElementById('loading-message');
-    if (loadingMessage) {
-      loadingMessage.remove();
-    }
-  }
-
-  // Store the original content of the <article> tag
+  // Store the original content of the <article> tag if not already stored
   const articleElement = document.querySelector('article');
-  if (articleElement) {
+  if (articleElement && !window.originalBody) {
     window.originalBody = articleElement.innerHTML;
     console.log("Original content stored.");
-  } else {
+  } else if (!articleElement) {
     console.error('Article element not found.');
+  }
+
+  // Append the translation controls on document load
+  const articleBodyElement = document.querySelector('.article__body');
+  if (articleBodyElement) {
+    articleBodyElement.prepend(createTranslationControls());
+    console.log("Dropdown and button added to the .article__body.");
+  } else {
+    console.error('.article__body element not found.');
   }
 
   async function handleTranslation() {
@@ -93,11 +75,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const targetLanguage = document.getElementById('language-dropdown').value;
     const articleElement = document.querySelector('article');
+    const dropdown = document.getElementById('language-dropdown');
+    const translateButton = document.querySelector('button');
+    const loadingMessage = document.getElementById('loading-message');
 
     if (!articleElement) {
       console.error('Article element not found.');
       return;
     }
+
+    // Disable dropdown and button, show loading message
+    dropdown.disabled = true;
+    translateButton.disabled = true;
+    translateButton.style.display = 'none';
+    loadingMessage.style.display = 'block';
 
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
@@ -111,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      showLoading(); // Show loading message
       const response = await fetch('https://tnh-translation.vercel.app/api/translate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,13 +117,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Replace the content of the article with the translated content
       articleElement.innerHTML = data.translation;
-      addDropdown(); // Re-add the dropdown after the content has changed
+
+      // Recreate and prepend the translation controls
+      articleElement.querySelector('.article__body').prepend(createTranslationControls());
+
     } catch (error) {
       console.error('Error during translation process:', error);
     } finally {
-      hideLoading(); // Hide loading message
+      // Re-enable dropdown and button, hide loading message
+      dropdown.disabled = false;
+      translateButton.disabled = false;
+      translateButton.style.display = 'block';
+      loadingMessage.style.display = 'none';
     }
   }
-
-  addDropdown(); // Initial addition of the dropdown
 });

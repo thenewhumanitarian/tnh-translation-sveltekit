@@ -46,21 +46,13 @@ function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
   return chunks;
 }
 
-async function translateLongHtmlContent(htmlContent: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
-  const chunkSize = 2000; // Define chunk size
-  const chunks = splitHtmlIntoChunks(htmlContent, chunkSize);
+async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
+  const chatCompletion = await openai.chat.completions.create({
+    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags. Don't translate elements that have class set to one of thewse values: 'region-breadcrumb__link', 'meta-list', 'article__post-share'.\nText:\n\n${chunk}` }],
+    model: gptModel
+  });
 
-  const translatedChunks = await Promise.all(
-    chunks.map(async (chunk) => {
-      const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags but excluding elements with class names "exclude-from-translation":\n\n${chunk}` }],
-        model: gptModel
-      });
-      return chatCompletion.choices[0].message.content;
-    })
-  );
-
-  return translatedChunks.join('');
+  return chatCompletion.choices[0].message.content;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -75,7 +67,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID, target language, and last updated timestamp
+    // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
       .from('translations')
       .select('*')
@@ -94,31 +86,34 @@ export const POST: RequestHandler = async ({ request }) => {
     if (data) {
       console.log('Translation found in Supabase');
       // Return existing translation
-      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    let translatedHtml;
-    if (cleanedHtmlContent.length > 2000) {
-      translatedHtml = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
-    } else {
-      const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags but excluding elements with class names "exclude-from-translation":\n\n${cleanedHtmlContent}` }],
-        model: gptModel
-      });
-      translatedHtml = chatCompletion.choices[0].message.content;
+    const chunkSize = 2000; // Define chunk size
+    const chunks = splitHtmlIntoChunks(cleanedHtmlContent, chunkSize);
 
-      // Log token usage
-      console.log('Token usage:', chatCompletion.usage);
-    }
+    console.log(`Total chunks: ${chunks.length}`);
 
-    // Store the new translation in Supabase
+    const translationPromises = chunks.map((chunk, index) => {
+      console.log(`Translating chunk ${index + 1}/${chunks.length}`);
+      return translateHtmlChunk(chunk, srcLanguage, targetLanguage, gptModel);
+    });
+
+    const translatedChunks = await Promise.all(translationPromises);
+
+    const finalTranslation = translatedChunks.join('');
+
+    // Log original string to ensure it's correct
+    console.log('Original String:', cleanedHtmlContent);
+
+    // Store the final translation in the translations table
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
-        { article_id: articleId, original_string: cleanedHtmlContent, src_language: srcLanguage, target_language: targetLanguage, translation: translatedHtml, gpt_model: gptModel, last_updated: lastUpdated }
+        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: finalTranslation, original_string: cleanedHtmlContent, gpt_model: gptModel, last_updated: lastUpdated }
       ]);
 
     if (insertError) {
@@ -129,7 +124,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
-    return new Response(JSON.stringify({ translation: translatedHtml, source: 'chatgpt', requestData: { articleId, srcLanguage, targetLanguage, htmlContent: cleanedHtmlContent } }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(JSON.stringify({ translation: finalTranslation, source: 'chatgpt' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
