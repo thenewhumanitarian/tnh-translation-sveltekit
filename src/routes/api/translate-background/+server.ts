@@ -3,10 +3,9 @@ import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import openai from '$lib/openaiClient';
 
-interface HtmlNode {
+interface HtmlChunk {
   tag: string;
   content: string;
-  children: HtmlNode[];
 }
 
 function cleanHtml(html: string): string {
@@ -15,85 +14,35 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-function parseHtml(html: string): HtmlNode[] {
-  const nodes: HtmlNode[] = [];
-  const stack: HtmlNode[] = [];
+function splitHtmlIntoChunks(html: string): HtmlChunk[] {
+  const chunks: HtmlChunk[] = [];
   const regex = /(<\/?[^>]+>)/g;
   let lastIndex = 0;
 
   html.replace(regex, (match, tag, index) => {
-    const textPart = html.substring(lastIndex, index).trim();
-    if (textPart) {
-      const textNode: HtmlNode = { tag: '', content: textPart, children: [] };
-      if (stack.length > 0) {
-        stack[stack.length - 1].children.push(textNode);
-      } else {
-        nodes.push(textNode);
-      }
+    const textPart = html.substring(lastIndex, index);
+    if (textPart.trim()) {
+      chunks.push({ tag: '', content: textPart });
     }
-
-    if (tag.startsWith('</')) {
-      const node = stack.pop();
-      if (node && stack.length > 0) {
-        stack[stack.length - 1].children.push(node);
-      } else if (node) {
-        nodes.push(node);
-      }
-    } else {
-      const newNode: HtmlNode = { tag, content: '', children: [] };
-      stack.push(newNode);
-    }
+    chunks.push({ tag: match, content: '' });
     lastIndex = index + match.length;
   });
 
-  const remainingText = html.substring(lastIndex).trim();
-  if (remainingText) {
-    const textNode: HtmlNode = { tag: '', content: remainingText, children: [] };
-    if (stack.length > 0) {
-      stack[stack.length - 1].children.push(textNode);
-    } else {
-      nodes.push(textNode);
-    }
+  const remainingText = html.substring(lastIndex);
+  if (remainingText.trim()) {
+    chunks.push({ tag: '', content: remainingText });
   }
 
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (node) {
-      nodes.push(node);
-    }
-  }
-
-  return nodes;
-}
-
-async function translateHtmlNode(node: HtmlNode, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<HtmlNode> {
-  if (node.tag) {
-    const translatedChildren = await Promise.all(node.children.map(child => translateHtmlNode(child, srcLanguage, targetLanguage, gptModel)));
-    return { ...node, children: translatedChildren };
-  } else {
-    const translatedContent = await translateHtmlChunk(node.content, srcLanguage, targetLanguage, gptModel);
-    return { ...node, content: translatedContent };
-  }
+  return chunks;
 }
 
 async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLanguage: string, gptModel: string): Promise<string> {
   const chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: 'user', content: `Translate the following text from ${srcLanguage} to ${targetLanguage}:\n\n${chunk}` }],
+    messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${chunk}` }],
     model: gptModel
   });
 
   return chatCompletion.choices[0].message.content;
-}
-
-function reconstructHtml(nodes: HtmlNode[]): string {
-  return nodes.map(node => {
-    if (node.tag) {
-      const childrenHtml = reconstructHtml(node.children);
-      return `${node.tag}${childrenHtml}${node.tag.replace('<', '</')}`;
-    } else {
-      return node.content;
-    }
-  }).join('');
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -133,13 +82,22 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation not found in Supabase, using ChatGPT');
 
     // If translation doesn't exist, use ChatGPT to translate
-    const nodes = parseHtml(cleanedHtmlContent);
+    const chunks = splitHtmlIntoChunks(cleanedHtmlContent);
 
-    console.log(`Total nodes: ${nodes.length}`);
+    console.log(`Total chunks: ${chunks.length}`);
 
-    const translatedNodes = await Promise.all(nodes.map(node => translateHtmlNode(node, srcLanguage, targetLanguage, gptModel)));
+    const translationPromises = chunks.map((chunk, index) => {
+      if (chunk.tag) {
+        return Promise.resolve(chunk.tag);
+      } else {
+        console.log(`Translating chunk ${index + 1}/${chunks.length}`);
+        return translateHtmlChunk(chunk.content, srcLanguage, targetLanguage, gptModel);
+      }
+    });
 
-    const finalTranslation = reconstructHtml(translatedNodes);
+    const translatedChunks = await Promise.all(translationPromises);
+
+    const finalTranslation = translatedChunks.join('');
 
     // Log original string to ensure it's correct
     console.log('Original String:', cleanedHtmlContent);
