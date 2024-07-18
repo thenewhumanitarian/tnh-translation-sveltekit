@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 
 	const translatedHtml = writable<string | null>(null);
@@ -13,6 +12,7 @@
 		htmlContent: string;
 		gptModel: string;
 	} | null>(null);
+	const showRenderedHtml = writable<boolean>(true);
 
 	const languages = [
 		{ code: 'en', name: 'English' },
@@ -118,21 +118,53 @@
 	{/if}
 
 	{#if $translatedHtml}
-		<div class="p-4 border mb-4">
-			{@html $translatedHtml}
+		<div class="mb-4">
+			<button
+				on:click={() => showRenderedHtml.update((v) => !v)}
+				class="p-2 bg-gray-500 text-white"
+			>
+				{#if $showRenderedHtml}
+					Show HTML
+				{/if}
+				{#if !$showRenderedHtml}
+					Show Rendered
+				{/if}
+			</button>
+			<button
+				on:click={() => navigator.clipboard.writeText($translatedHtml)}
+				class="p-2 bg-green-500 text-white"
+			>
+				Copy HTML
+			</button>
 		</div>
-		<p>Translation source: {$translationSource}</p>
-		{#if $requestData}
-			<div class="p-4 border">
-				<h2 class="font-bold">Request Information</h2>
-				<hr class="my-2" />
-				<p><strong>Original Language:</strong> {$requestData.srcLanguage}</p>
-				<p><strong>Target Language:</strong> {$requestData.targetLanguage}</p>
-				<p><strong>GPT Model:</strong> {$requestData.gptModel}</p>
-				<hr class="my-2" />
-				<p><strong>Original String:</strong></p>
-				<p>{@html $requestData.htmlContent}</p>
-			</div>
-		{/if}
+		<div class="grey box">
+			{#if $showRenderedHtml}
+				{@html $translatedHtml}
+			{/if}
+			{#if !$showRenderedHtml}
+				<pre>{$translatedHtml}</pre>
+			{/if}
+		</div>
+		<div>
+			{#if $requestData}
+				<div class="grey box mono">
+					<h2 class="font-bold">Request Information</h2>
+					<p>Translation source: {$translationSource}</p>
+					<hr />
+					<p><strong>Original Language:</strong> {$requestData.srcLanguage}</p>
+					<p><strong>Target Language:</strong> {$requestData.targetLanguage}</p>
+					<p><strong>GPT Model:</strong> {$requestData.gptModel}</p>
+					<hr />
+					<p><strong>Original String:</strong></p>
+					<p>{$requestData.htmlContent}</p>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </main>
+
+<style>
+	.error {
+		color: red;
+	}
+</style>
