@@ -8,6 +8,10 @@
   @apply font-mono;
 }
 
+.bold {
+  @apply font-bold;
+}
+
 .box:first-of-type {
   @apply mt-0;
 }
@@ -15,6 +19,11 @@
 .error.box,
 .red.box {
   @apply bg-red-400 text-white font-bold;
+}
+
+.success-box,
+.green-box {
+  @apply bg-lime-100;
 }
 
 .grey.box {
