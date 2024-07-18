@@ -6,6 +6,7 @@ import openai from '$lib/openaiClient';
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
+  cleanedHtml = cleanedHtml.replace(/<p>&nbsp;<\/p>/g, '');
   return cleanedHtml;
 }
 
@@ -107,7 +108,7 @@ export const POST: RequestHandler = async ({ request }) => {
       translatedHtml = await translateLongHtmlContent(cleanedHtmlContent, srcLanguage, targetLanguage, gptModel);
     } else {
       const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags:\n\n${cleanedHtmlContent}` }],
+        messages: [{ role: 'user', content: `Translate the following HTML from ${srcLanguage} to ${targetLanguage}, preserving the HTML tags. Remove empty <p> tags that only contain &nbsp;, please:\n\n${cleanedHtmlContent}` }],
         model: gptModel
       });
       translatedHtml = chatCompletion.choices[0].message.content;
