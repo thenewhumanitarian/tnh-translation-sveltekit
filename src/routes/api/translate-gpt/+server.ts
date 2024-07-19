@@ -55,6 +55,21 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
   return chatCompletion.choices[0].message.content;
 }
 
+async function logAccess(source: string, articleId: string, srcLanguage: string, targetLanguage: string) {
+  const { error } = await supabase
+    .from('access_logs')
+    .insert([
+      { source, article_id: articleId, src_language: srcLanguage, target_language: targetLanguage }
+    ]);
+
+  if (error) {
+    console.error(`Supabase log insert error: ${error.message}`);
+    console.error(`Supabase log insert error details: ${JSON.stringify(error, null, 2)}`);
+  } else {
+    console.log('Access log entry created successfully.');
+  }
+}
+
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
@@ -85,6 +100,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (data) {
       console.log('Translation found in Supabase');
+      await logAccess('supabase', articleId, srcLanguage, targetLanguage);
       // Return existing translation
       return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
@@ -122,6 +138,7 @@ export const POST: RequestHandler = async ({ request }) => {
       throw new Error(`Supabase insert error: ${insertError.message}`);
     }
 
+    await logAccess('chatgpt', articleId, srcLanguage, targetLanguage);
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
     return new Response(JSON.stringify({ translation: finalTranslation, source: 'chatgpt' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
