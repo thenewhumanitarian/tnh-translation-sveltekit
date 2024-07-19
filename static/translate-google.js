@@ -103,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       console.log("Sending translation request with payload:", payload);
-      const response = await fetch('https://tnh-translation.vercel.app//api/translate-google', {
+      const response = await fetch('https://tnh-translation.vercel.app/api/translate-google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
