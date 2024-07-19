@@ -9,11 +9,11 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-async function logAccess(source: string, srcLanguage: string, targetLanguage: string) {
+async function logAccess(source: string, articleId: string, srcLanguage: string, targetLanguage: string) {
   const { error } = await supabase
     .from('access_logs')
     .insert([
-      { source, src_language: srcLanguage, target_language: targetLanguage }
+      { source, article_id: articleId, src_language: srcLanguage, target_language: targetLanguage }
     ]);
 
   if (error) {
@@ -54,8 +54,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (data) {
       console.log('Translation found in Supabase');
-      // Log access to Supabase
-      await logAccess('supabase', srcLanguage, targetLanguage);
+      await logAccess('supabase', articleId, srcLanguage, targetLanguage);
       // Return existing translation
       return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
@@ -83,9 +82,8 @@ export const POST: RequestHandler = async ({ request }) => {
       throw new Error(`Supabase insert error: ${insertError.message}`);
     }
 
+    await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
     console.log('Translation successful and stored in Supabase');
-    // Log access to Google Translate
-    await logAccess('google_translate', srcLanguage, targetLanguage);
     // Return the new translation
     return new Response(JSON.stringify({ translation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
