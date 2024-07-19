@@ -15,4 +15,4 @@ async function translateText(text: string, targetLanguage: string): Promise<stri
   return Array.isArray(translations) ? translations[0] : translations;
 }
 
-export { translateText };
+export { translateText }; // Ensure it's named export
