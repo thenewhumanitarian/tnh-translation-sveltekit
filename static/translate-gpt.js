@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const response = await fetch('https://tnh-translation.vercel.app/api/translate-article', {
+      const response = await fetch('https://tnh-translation.vercel.app/api/translate-gpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
