@@ -37,7 +37,7 @@
     };
 
     try {
-      const response = await fetch('/api/translate-html', {
+      const response = await fetch('/api/translate-gpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
