@@ -1,12 +1,49 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
-import translate from '$lib/googleClient';
+import { translate } from '$lib/googleClient';
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
+}
+
+function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
+  const chunks: string[] = [];
+  let currentChunk = '';
+  const regex = /(<\/?[^>]+>)/g;
+  let lastIndex = 0;
+
+  html.replace(regex, (match, tag, index) => {
+    const textPart = html.substring(lastIndex, index);
+    if (currentChunk.length + textPart.length > chunkSize) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+    currentChunk += textPart;
+    if (currentChunk.length + match.length > chunkSize) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+    currentChunk += match;
+    lastIndex = index + match.length;
+  });
+
+  const remainingText = html.substring(lastIndex);
+  if (remainingText.length > 0) {
+    if (currentChunk.length + remainingText.length > chunkSize) {
+      chunks.push(currentChunk);
+      chunks.push(remainingText);
+    } else {
+      currentChunk += remainingText;
+      chunks.push(currentChunk);
+    }
+  } else if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -45,19 +82,29 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation not found in Supabase, using Google Translate');
 
+    // Translate the entire HTML content at once
     const [translation] = await translate.translate(cleanedHtmlContent, {
       from: srcLanguage,
       to: targetLanguage,
       format: 'html'
     });
 
-    console.log('Translation received from Google Translate:', translation);
+    // Log original string to ensure it's correct
+    console.log('Original String:', cleanedHtmlContent);
 
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
-        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated }
+        {
+          article_id: articleId,
+          src_language: srcLanguage,
+          target_language: targetLanguage,
+          translation,
+          original_string: cleanedHtmlContent,
+          gpt_model: 'google_translate',
+          last_updated: lastUpdated
+        }
       ]);
 
     if (insertError) {
@@ -67,8 +114,10 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    // Return the new translation with direction
+    const dir = targetLanguage === 'ar' ? 'rtl' : 'ltr';
+    const translationWithDir = `<article dir="${dir}">${translation}</article>`;
+    return new Response(JSON.stringify({ translation: translationWithDir, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
