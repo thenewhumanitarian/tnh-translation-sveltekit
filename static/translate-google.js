@@ -103,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       console.log("Sending translation request with payload:", payload);
-      const response = await fetch('http://localhost:5173/api/translate-google', {
+      const response = await fetch('/api/translate-google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log('Translation response:', data);
 
       // Replace the content of the article with the translated content
-      articleElement.innerHTML = data.translation;
+      articleElement.querySelector('.article__body').innerHTML = data.translation;
 
       // Recreate and prepend the translation controls
       const newContainer = createTranslationControls();
