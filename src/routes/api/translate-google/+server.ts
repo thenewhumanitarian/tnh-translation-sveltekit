@@ -9,46 +9,34 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-function splitHtmlIntoChunks(html: string, chunkSize: number): string[] {
-  const chunks: string[] = [];
-  let currentChunk = '';
-  const regex = /(<\/?[^>]+>)/g;
-  let lastIndex = 0;
+function extractElements(html: string, ignoreClasses: string[]): { cleanedHtml: string, extractedElements: { [key: string]: string } } {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const extractedElements: { [key: string]: string } = {};
 
-  html.replace(regex, (match, tag, index) => {
-    const textPart = html.substring(lastIndex, index);
-    if (currentChunk.length + textPart.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += textPart;
-    if (currentChunk.length + match.length > chunkSize) {
-      chunks.push(currentChunk);
-      currentChunk = '';
-    }
-    currentChunk += match;
-    lastIndex = index + match.length;
+  ignoreClasses.forEach(className => {
+    const elements = doc.querySelectorAll(`.${className}`);
+    elements.forEach((el, index) => {
+      const placeholder = `<!-- ${className}_${index} -->`;
+      extractedElements[placeholder] = el.outerHTML;
+      el.outerHTML = placeholder;
+    });
   });
 
-  const remainingText = html.substring(lastIndex);
-  if (remainingText.length > 0) {
-    if (currentChunk.length + remainingText.length > chunkSize) {
-      chunks.push(currentChunk);
-      chunks.push(remainingText);
-    } else {
-      currentChunk += remainingText;
-      chunks.push(currentChunk);
-    }
-  } else if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
-  }
+  return { cleanedHtml: doc.body.innerHTML, extractedElements };
+}
 
-  return chunks;
+function reinsertElements(translatedHtml: string, extractedElements: { [key: string]: string }): string {
+  let resultHtml = translatedHtml;
+  Object.keys(extractedElements).forEach(placeholder => {
+    resultHtml = resultHtml.replace(placeholder, extractedElements[placeholder]);
+  });
+  return resultHtml;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, ignoreClasses = [] } = await request.json();
 
     if (password !== PASSWORD) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -57,6 +45,9 @@ export const POST: RequestHandler = async ({ request }) => {
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
+
+    // Extract elements to ignore from the HTML content
+    const { cleanedHtml, extractedElements } = extractElements(cleanedHtmlContent, ignoreClasses);
 
     // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
@@ -82,12 +73,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation not found in Supabase, using Google Translate');
 
-    // Translate the entire HTML content at once
-    const [translation] = await translate.translate(cleanedHtmlContent, {
+    // Translate the cleaned HTML content
+    const [translation] = await translate.translate(cleanedHtml, {
       from: srcLanguage,
       to: targetLanguage,
       format: 'html'
     });
+
+    // Reinsert ignored elements back into the translated HTML content
+    const finalTranslation = reinsertElements(translation, extractedElements);
 
     // Log original string to ensure it's correct
     console.log('Original String:', cleanedHtmlContent);
@@ -100,7 +94,7 @@ export const POST: RequestHandler = async ({ request }) => {
           article_id: articleId,
           src_language: srcLanguage,
           target_language: targetLanguage,
-          translation,
+          translation: finalTranslation,
           original_string: cleanedHtmlContent,
           gpt_model: 'google_translate',
           last_updated: lastUpdated
@@ -116,7 +110,7 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation successful and stored in Supabase');
     // Return the new translation with direction
     const dir = targetLanguage === 'ar' ? 'rtl' : 'ltr';
-    const translationWithDir = `<article dir="${dir}">${translation}</article>`;
+    const translationWithDir = `<article dir="${dir}">${finalTranslation}</article>`;
     return new Response(JSON.stringify({ translation: translationWithDir, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
