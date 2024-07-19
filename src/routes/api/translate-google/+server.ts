@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
-import { translateText } from '$lib/googleClient';
+import translate from '$lib/googleClient';
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
@@ -11,10 +11,9 @@ function cleanHtml(html: string): string {
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'google_translate', password, lastUpdated } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
 
     if (password !== PASSWORD) {
-      console.log('Unauthorized request');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -46,20 +45,19 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation not found in Supabase, using Google Translate');
 
-    // If translation doesn't exist, use Google Translate to translate
-    let translatedText;
-    try {
-      translatedText = await translateText(cleanedHtmlContent, targetLanguage);
-    } catch (translateError) {
-      console.error('Error during translation with Google Translate:', translateError);
-      throw new Error(`Translation error: ${translateError.message}`);
-    }
+    const [translation] = await translate.translate(cleanedHtmlContent, {
+      from: srcLanguage,
+      to: targetLanguage,
+      format: 'html'
+    });
+
+    console.log('Translation received from Google Translate:', translation);
 
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
-        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: translatedText, original_string: cleanedHtmlContent, gpt_model: gptModel, last_updated: lastUpdated }
+        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated }
       ]);
 
     if (insertError) {
@@ -70,7 +68,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
-    return new Response(JSON.stringify({ translation: translatedText, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(JSON.stringify({ translation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
