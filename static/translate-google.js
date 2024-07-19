@@ -11,9 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'ht', name: 'Creole' }
   ];
 
-  const ignoreClasses = ['region-breadcrumb__link', 'meta-list', 'article__post-share'];
-
+  // Function to create and prepend the dropdown menu and button
   function createTranslationControls() {
+    // Create dropdown menu
     const dropdown = document.createElement('select');
     dropdown.id = 'language-dropdown';
     dropdown.style.width = '100%';
@@ -24,17 +24,20 @@ document.addEventListener("DOMContentLoaded", () => {
       dropdown.appendChild(option);
     });
 
+    // Create translate button
     const translateButton = document.createElement('button');
     translateButton.textContent = 'Translate';
     translateButton.style.padding = '0.9rem';
     translateButton.style.cursor = 'pointer';
     translateButton.addEventListener('click', handleTranslation);
 
+    // Create loading message
     const loadingMessage = document.createElement('span');
     loadingMessage.id = 'loading-message';
     loadingMessage.style.display = 'none';
     loadingMessage.textContent = 'Translating...';
 
+    // Create a container for the dropdown and button
     const container = document.createElement('div');
     container.style.marginBottom = '1em';
     container.style.display = 'flex';
@@ -49,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return container;
   }
 
+  // Store the original content of the <article> tag if not already stored
   const articleElement = document.querySelector('article');
   if (articleElement && !window.originalBody) {
     window.originalBody = articleElement.innerHTML;
@@ -58,6 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const articleBodyElement = document.querySelector('.article__body');
+
+  // Append the translation controls on document load
   if (articleBodyElement) {
     articleBodyElement.prepend(createTranslationControls());
     console.log("Dropdown and button added to the .article__body.");
@@ -78,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Disable dropdown and button, show loading message
     dropdown.disabled = true;
     translateButton.disabled = true;
     translateButton.style.display = 'none';
@@ -91,8 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       targetLanguage: targetLanguage,
       htmlContent: window.originalBody,
       password: 'tnh',
-      lastUpdated: lastUpdated,
-      ignoreClasses: ignoreClasses
+      lastUpdated: lastUpdated
     };
 
     try {
