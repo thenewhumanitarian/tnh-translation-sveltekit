@@ -58,14 +58,15 @@ document.addEventListener("DOMContentLoaded", () => {
     window.originalBody = articleElement.innerHTML;
     console.log("Original content stored.");
   } else if (!articleElement) {
-    console.error('Article element not found.');
+    console.error('article element not found.');
   }
 
-  // Append the translation controls on document load
   const articleBodyElement = document.querySelector('.article__body');
+
+  // Append the translation controls on document load
   if (articleBodyElement) {
     articleBodyElement.prepend(createTranslationControls());
-    console.log("Dropdown and button added to the article.");
+    console.log("Dropdown and button added to the .article__body.");
   } else {
     console.error('.article__body element not found.');
   }
@@ -74,13 +75,12 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Translate button clicked.");
 
     const targetLanguage = document.getElementById('language-dropdown').value;
-    const articleElement = document.querySelector('article');
     const dropdown = document.getElementById('language-dropdown');
     const translateButton = document.querySelector('button');
     const loadingMessage = document.getElementById('loading-message');
 
     if (!articleElement) {
-      console.error('Article element not found.');
+      console.error('.article__body element not found.');
       return;
     }
 
@@ -103,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       console.log("Sending translation request with payload:", payload);
-      const response = await fetch('/api/translate-google', {
+      const response = await fetch('http://localhost:5173/api/translate-google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -116,13 +116,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log('Translation response:', data);
 
-      // Replace the content of the article with the translated content
-      articleElement.querySelector('.article__body').innerHTML = data.translation;
+      // Replace the content of the .article__body with the translated content
+      articleElement.innerHTML = data.translation;
+
+      const articleBodyElement = document.querySelector('.article__body');
 
       // Recreate and prepend the translation controls
       const newContainer = createTranslationControls();
-      articleElement.querySelector('.article__body').prepend(newContainer);
-
+      articleBodyElement.prepend(newContainer);
     } catch (error) {
       console.error('Error during translation process:', error);
     } finally {
