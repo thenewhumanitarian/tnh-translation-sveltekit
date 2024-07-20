@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
-import { supabase } from '$lib/supabaseClient';
-import openai from '$lib/openaiClient';
+import { supabase } from '$lib/clients/supabaseClient';
+import openai from '$lib/clients/openaiClient';
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');

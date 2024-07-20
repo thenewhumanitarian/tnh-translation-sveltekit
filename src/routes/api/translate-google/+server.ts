@@ -1,66 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
-import { supabase } from '$lib/supabaseClient';
-import translate from '$lib/googleClient';
-import { JSDOM } from 'jsdom'; // Add jsdom for DOM manipulation
-
-const FEEDBACK_ELEMENT_PARAGRAPH_OFFSET = 5;
-
-function cleanHtml(html: string): string {
-  let cleanedHtml = html.replace(/ dir="ltr"/g, '');
-  cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
-  return cleanedHtml;
-}
-
-function removeUnwantedSpaces(text: string): string {
-  // Remove spaces before punctuation marks
-  text = text.replace(/\s+([.,!?;:])/g, '$1');
-
-  // Remove spaces before closing HTML tags
-  text = text.replace(/\s+(<\/[a-z]+>)/gi, '$1');
-
-  // Remove unwanted whitespace sequences
-  text = text.replace(/\s*\n\s*/g, '\n'); // Collapse multiple newlines into one
-  text = text.replace(/\n+/g, '\n'); // Remove multiple newlines
-  text = text.replace(/\t+/g, ''); // Remove all tabs
-
-  return text.trim();
-}
-
-function fixLinkPunctuation(text: string): string {
-  // Fix misplaced punctuation inside anchor tags
-  text = text.replace(/<a([^>]+)>([.,!?;:])([^<]+?)<\/a>/g, '$2<a$1>$3</a>');
-  text = text.replace(/<a([^>]+)>([^<]+?)<\/a>([.,!?;:])/g, '<a$1>$2</a>$3');
-
-  // Remove duplicated words outside anchor tags if they are the same as inside
-  text = text.replace(/(\s+)(<a[^>]+>)([^<]+)<\/a>\3/g, '$1$2$3</a>');
-
-  // Fix misplaced commas around anchor tags
-  text = text.replace(/ ,<a/g, ', <a');
-
-  return text;
-}
-
-function insertFeedbackElement(html: string): string {
-  const dom = new JSDOM(html);
-  const document = dom.window.document;
-
-  const fieldNameBodyFlow = document.querySelector('.field-name-body.flow');
-  if (fieldNameBodyFlow) {
-    const paragraphs = fieldNameBodyFlow.querySelectorAll('p');
-    const feedbackElement = document.createElement('div');
-    feedbackElement.setAttribute('style', 'margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;');
-    feedbackElement.innerHTML = '<p>Translation Feedback Element (placeholder)</p>';
-
-    if (paragraphs.length >= FEEDBACK_ELEMENT_PARAGRAPH_OFFSET) {
-      paragraphs[FEEDBACK_ELEMENT_PARAGRAPH_OFFSET - 1].insertAdjacentElement('afterend', feedbackElement);
-    } else {
-      fieldNameBodyFlow.appendChild(feedbackElement);
-    }
-  }
-
-  return dom.serialize();
-}
+import { supabase } from '$lib/clients/supabaseClient';
+import translate from '$lib/clients/googleClient';
+import { cleanHtml } from '$lib/helpers/cleanHtml';
+import { removeUnwantedSpaces } from '$lib/helpers/removeUnwantedSpaces';
+import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
+import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
+import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
@@ -147,18 +93,6 @@ export const POST: RequestHandler = async ({ request }) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 };
-
-async function logAccess(source: string, articleId: string, srcLang: string, targetLang: string) {
-  const { error } = await supabase
-    .from('access_logs')
-    .insert([
-      { source, article_id: articleId, src_language: srcLang, target_language: targetLang, timestamp: new Date().toISOString() }
-    ]);
-
-  if (error) {
-    console.error(`Error logging access: ${error.message}`);
-  }
-}
 
 export const OPTIONS: RequestHandler = async () => {
   return new Response(null, {
