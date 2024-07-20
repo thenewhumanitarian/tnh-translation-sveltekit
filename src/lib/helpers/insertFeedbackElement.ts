@@ -7,15 +7,19 @@ export function insertFeedbackElement(html: string, translationId: string): stri
   const document = dom.window.document;
 
   const feedbackElementHtml = `
-    <div style="margin: 3rem auto; text-align: center; background: #ddd; padding: 2rem;">
-      <hr/>
+    <div class="feedback-element" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
       <p>Translation Feedback Element (ID: ${translationId})</p>
-      <hr/>
     </div>
   `;
 
   const fieldNameBodyFlow = document.querySelector('.field-name-body.flow');
   if (fieldNameBodyFlow) {
+    // Remove any existing feedback elements
+    const existingFeedbackElement = fieldNameBodyFlow.querySelector('.feedback-element');
+    if (existingFeedbackElement) {
+      existingFeedbackElement.remove();
+    }
+
     const paragraphs = fieldNameBodyFlow.querySelectorAll('p');
     if (paragraphs.length >= FEEDBACK_ELEMENT_PARAGRAPH_OFFSET) {
       paragraphs[FEEDBACK_ELEMENT_PARAGRAPH_OFFSET - 1].insertAdjacentHTML('afterend', feedbackElementHtml);

@@ -107,9 +107,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log('Translation response:', data);
 
+      // Replace the content of the .article__body with the translated content
       articleElement.innerHTML = data.translation;
 
       const articleBodyElement = document.querySelector('.article__body');
+
+      // Recreate and prepend the translation controls
       const newContainer = createTranslationControls();
       articleBodyElement.prepend(newContainer);
     } catch (error) {
