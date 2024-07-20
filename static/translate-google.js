@@ -93,11 +93,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
+    // Calculate the position of the script in the DOM
+    const paragraphs = articleElement.querySelectorAll('p');
+    let scriptPosition = 0;
+    paragraphs.forEach((p, index) => {
+      if (p.contains(dropdown)) {
+        scriptPosition = index + 1;
+      }
+    });
+
     const payload = {
       articleId: nodeId,
       targetLanguage: targetLanguage,
       htmlContent: window.originalBody,
-      lastUpdated: lastUpdated
+      lastUpdated: lastUpdated,
+      scriptPosition: scriptPosition // Include the script position in the payload
     };
 
     try {
