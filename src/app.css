@@ -38,5 +38,9 @@ button {
   @apply px-3 py-2 bg-zinc-900 text-white font-bold text-lg;
 }
 
+a {
+  @apply font-bold underline;
+}
+
 @tailwind components;
 @tailwind utilities;

@@ -55,23 +55,6 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
   return chatCompletion.choices[0].message.content;
 }
 
-async function logAccess(source: string, articleId: string, srcLang: string, targetLang: string) {
-  const { error } = await supabase.from('access_logs').insert([
-    {
-      article_id: articleId,
-      src_language: srcLang,
-      target_language: targetLang,
-      source,
-      timestamp: new Date().toISOString()
-    }
-  ]);
-
-  if (error) {
-    console.error('Error logging access:', error.message);
-    throw new Error(`Supabase error: ${error.message}`);
-  }
-}
-
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
@@ -127,37 +110,4 @@ export const POST: RequestHandler = async ({ request }) => {
     // Log original string to ensure it's correct
     console.log('Original String:', cleanedHtmlContent);
 
-    // Store the final translation in the translations table
-    const { error: insertError } = await supabase
-      .from('translations')
-      .insert([
-        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: finalTranslation, original_string: cleanedHtmlContent, gpt_model: gptModel, last_updated: lastUpdated }
-      ]);
-
-    if (insertError) {
-      console.error(`Supabase insert error: ${insertError.message}`);
-      console.error(`Supabase insert error details: ${JSON.stringify(insertError, null, 2)}`);
-      throw new Error(`Supabase insert error: ${insertError.message}`);
-    }
-
-    await logAccess('chatgpt', articleId, srcLanguage, targetLanguage);
-
-    console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation: finalTranslation, source: 'chatgpt' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
-  } catch (error) {
-    console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
-  }
-};
-
-export const OPTIONS: RequestHandler = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    }
-  });
-};
+// Store the final translation in

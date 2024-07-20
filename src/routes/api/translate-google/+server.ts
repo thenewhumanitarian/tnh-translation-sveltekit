@@ -9,21 +9,6 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
-async function logAccess(source: string, articleId: string, srcLanguage: string, targetLanguage: string) {
-  const { error } = await supabase
-    .from('access_logs')
-    .insert([
-      { source, article_id: articleId, src_language: srcLanguage, target_language: targetLanguage }
-    ]);
-
-  if (error) {
-    console.error(`Supabase log insert error: ${error.message}`);
-    console.error(`Supabase log insert error details: ${JSON.stringify(error, null, 2)}`);
-  } else {
-    console.log('Access log entry created successfully.');
-  }
-}
-
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
@@ -83,6 +68,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
+
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
     return new Response(JSON.stringify({ translation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -91,6 +77,18 @@ export const POST: RequestHandler = async ({ request }) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 };
+
+async function logAccess(source: string, articleId: string, srcLang: string, targetLang: string) {
+  const { error } = await supabase
+    .from('access_logs')
+    .insert([
+      { source, article_id: articleId, src_language: srcLang, target_language: targetLang, timestamp: new Date().toISOString() }
+    ]);
+
+  if (error) {
+    console.error(`Error logging access: ${error.message}`);
+  }
+}
 
 export const OPTIONS: RequestHandler = async () => {
   return new Response(null, {

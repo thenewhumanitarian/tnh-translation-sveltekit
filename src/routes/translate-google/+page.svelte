@@ -67,7 +67,7 @@
 <div>
 	<div class="grey box">
 		<h1 class="font-bold text-3xl mb-1">Translate HTML Content</h1>
-		<h2>Using the Google Cloud Translation API</h2>
+		<h2>Using the <span class="font-bold">Google Cloud Translation API</span></h2>
 	</div>
 	<form on:submit={handleSubmit} class="mb-5 space-y-4">
 		<div>
