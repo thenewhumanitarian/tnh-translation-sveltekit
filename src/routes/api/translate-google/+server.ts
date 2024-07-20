@@ -24,6 +24,12 @@ function removeUnwantedSpaces(text: string): string {
   return text.trim();
 }
 
+function fixLinkPunctuation(text: string): string {
+  // Move punctuation marks out of links
+  text = text.replace(/<a([^>]+)>\s*([^<]+?)\s*<\/a>([.,!?;:])/g, '$2$3<a$1>$2</a>');
+  return text;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
@@ -76,7 +82,8 @@ export const POST: RequestHandler = async ({ request }) => {
     console.log('Translation received from Google Translate:', translation);
 
     // Clean up the translated content
-    const cleanedTranslation = removeUnwantedSpaces(translation);
+    let cleanedTranslation = removeUnwantedSpaces(translation);
+    cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
 
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
