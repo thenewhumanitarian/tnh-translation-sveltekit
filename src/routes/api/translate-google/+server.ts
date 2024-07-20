@@ -10,7 +10,7 @@ import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, scriptPosition } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
     const referer = request.headers.get('referer');
 
     // List of allowed referers
@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
       translationId = data.id;
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
-      translation = insertFeedbackElement(translation, scriptPosition); // Use the script position
+      translation = insertFeedbackElement(translation); // Insert feedback element
 
       // Return existing translation
       return new Response(JSON.stringify({ translation, translationId, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -71,7 +71,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Clean up the translated content
     let cleanedTranslation = removeUnwantedSpaces(translation);
     cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
-    cleanedTranslation = insertFeedbackElement(cleanedTranslation, scriptPosition); // Use the script position
+    cleanedTranslation = insertFeedbackElement(cleanedTranslation); // Insert feedback element
 
     // Store the final translation in the translations table
     const { data: insertData, error: insertError } = await supabase

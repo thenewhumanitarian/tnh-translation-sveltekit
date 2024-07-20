@@ -93,7 +93,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    // Find the position of the script in the DOM inside .article__body with translate- in src
     const scriptElements = document.querySelectorAll('.article__body script[src*="translate-"]');
     let scriptPosition = null;
     scriptElements.forEach((script, index) => {
