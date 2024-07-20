@@ -4,6 +4,8 @@ import { supabase } from '$lib/supabaseClient';
 import translate from '$lib/googleClient';
 import { JSDOM } from 'jsdom'; // Add jsdom for DOM manipulation
 
+const FEEDBACK_ELEMENT_PARAGRAPH_OFFSET = 5;
+
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
   cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
@@ -46,12 +48,14 @@ function insertFeedbackElement(html: string): string {
   const fieldNameBodyFlow = document.querySelector('.field-name-body.flow');
   if (fieldNameBodyFlow) {
     const paragraphs = fieldNameBodyFlow.querySelectorAll('p');
-    if (paragraphs.length >= 5) {
-      const feedbackElement = document.createElement('div');
-      feedbackElement.setAttribute('style', 'margin: 3rem auto; text-align: center; background: #ddd; padding: 2rem;');
-      feedbackElement.innerHTML = '<p>Translation Feedback Element (placeholder)</p>';
+    const feedbackElement = document.createElement('div');
+    feedbackElement.setAttribute('style', 'margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;');
+    feedbackElement.innerHTML = '<p>Translation Feedback Element (placeholder)</p>';
 
-      paragraphs[4].insertAdjacentElement('afterend', feedbackElement);
+    if (paragraphs.length >= FEEDBACK_ELEMENT_PARAGRAPH_OFFSET) {
+      paragraphs[FEEDBACK_ELEMENT_PARAGRAPH_OFFSET - 1].insertAdjacentElement('afterend', feedbackElement);
+    } else {
+      fieldNameBodyFlow.appendChild(feedbackElement);
     }
   }
 
