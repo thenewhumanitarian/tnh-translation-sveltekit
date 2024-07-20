@@ -8,7 +8,7 @@ export function insertFeedbackElement(html: string, translationId: string, acces
 
   const feedbackElementHtml = `
     <div class="feedback-element" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-      <p style="font: bold;">Translation Feedback Element</p>
+      <p style="font-weight: bold;">Translation Feedback Element</p>
       <pre style="margin: 0;">Translation ID: ${translationId}</pre>
       <pre style="margin: 0;">Access ID: ${accessId}</pre>
       <pre style="margin: 0;">Target Language: ${targetLanguage}</pre>
