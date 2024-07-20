@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const referer = request.headers.get('referer');
 
     // List of allowed referers
-    const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org'];
+    const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org', 'thenewhumanitarian.org.ddev.site'];
 
     const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
 
