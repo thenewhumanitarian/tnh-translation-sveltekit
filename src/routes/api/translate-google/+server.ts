@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request }) => {
       let translation = data.translation;
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
-      translation = insertFeedbackElement(translation, data.id, accessId);
+      translation = insertFeedbackElement(translation, data.id, accessId, targetLanguage);
 
       // Return existing translation
       return new Response(JSON.stringify({ translation, source: 'supabase', translationId: data.id, accessId }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -87,7 +87,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const accessId = await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
 
     // Add the feedback element
-    cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId);
+    cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, targetLanguage);
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
