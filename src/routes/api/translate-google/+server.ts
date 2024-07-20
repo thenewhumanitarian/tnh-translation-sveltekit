@@ -5,7 +5,7 @@ import translate from '$lib/googleClient';
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
-  cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
+  cleanedHtml = html.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
 }
 
@@ -31,6 +31,9 @@ function fixLinkPunctuation(text: string): string {
   
   // Remove duplicated words outside anchor tags if they are the same as inside
   text = text.replace(/(\s+)(<a[^>]+>)([^<]+)<\/a>\3/g, '$1$2$3</a>');
+
+  // Fix misplaced commas around anchor tags
+  text = text.replace(/ ,<a/g, ', <a');
 
   return text;
 }
