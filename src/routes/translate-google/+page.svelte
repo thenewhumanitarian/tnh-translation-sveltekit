@@ -34,11 +34,11 @@
 			targetLanguage: formData.get('targetLanguage') as string,
 			htmlContent: formData.get('htmlContent') as string,
 			password: formData.get('password') as string, // Include password in the payload
-			lastUpdated: new Date().toISOString()
+			lastUpdated: new Date().toISOString() // Current timestamp
 		};
 
 		try {
-			const response = await fetch('/api/translate-gpt', {
+			const response = await fetch('https://tnh-translation.vercel.app/api/translate-google', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
@@ -67,7 +67,7 @@
 <main class="p-5">
 	<div class="grey box">
 		<h1 class="font-bold text-3xl mb-1">Translate HTML Content</h1>
-		<h2>Using the ChatGPT API</h2>
+		<h2>Using the Google Cloud Translation API</h2>
 	</div>
 	<form on:submit={handleSubmit} class="mb-5 space-y-4">
 		<div>

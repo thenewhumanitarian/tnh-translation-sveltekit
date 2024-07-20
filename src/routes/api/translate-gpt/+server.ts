@@ -55,18 +55,20 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
   return chatCompletion.choices[0].message.content;
 }
 
-async function logAccess(source: string, articleId: string, srcLanguage: string, targetLanguage: string) {
-  const { error } = await supabase
-    .from('access_logs')
-    .insert([
-      { source, article_id: articleId, src_language: srcLanguage, target_language: targetLanguage }
-    ]);
+async function logAccess(source: string, articleId: string, srcLang: string, targetLang: string) {
+  const { error } = await supabase.from('access_logs').insert([
+    {
+      article_id: articleId,
+      src_language: srcLang,
+      target_language: targetLang,
+      source,
+      timestamp: new Date().toISOString()
+    }
+  ]);
 
   if (error) {
-    console.error(`Supabase log insert error: ${error.message}`);
-    console.error(`Supabase log insert error details: ${JSON.stringify(error, null, 2)}`);
-  } else {
-    console.log('Access log entry created successfully.');
+    console.error('Error logging access:', error.message);
+    throw new Error(`Supabase error: ${error.message}`);
   }
 }
 
@@ -89,7 +91,7 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq('article_id', articleId)
       .eq('src_language', srcLanguage)
       .eq('target_language', targetLanguage)
-      .eq('last_updated', lastUpdated)
+      // .eq('last_updated', lastUpdated)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
@@ -139,6 +141,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     await logAccess('chatgpt', articleId, srcLanguage, targetLanguage);
+
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
     return new Response(JSON.stringify({ translation: finalTranslation, source: 'chatgpt' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });

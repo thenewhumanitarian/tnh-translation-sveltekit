@@ -109,7 +109,7 @@
       <label for="password" class="block font-medium">Password:</label>
       <input type="password" id="password" name="password" required class="mt-1 p-2 border w-full" />
     </div>
-    <button type="submit" class="p-2 bg-blue-500 text-white">Translate</button>
+    <button type="submit">Translate</button>
   </form>
 
   {#if $errorMessage}
@@ -124,7 +124,7 @@
 
   {#if $translatedHtml}
     <div class="mb-4">
-      <button on:click={() => showRenderedHtml.update(v => !v)} class="p-2 bg-gray-500 text-white">
+      <button on:click={() => showRenderedHtml.update(v => !v)} class="bg-gray-500 text-white">
         {#if $showRenderedHtml}
           Show HTML
         {/if}
@@ -132,7 +132,7 @@
           Show Rendered
         {/if}
       </button>
-      <button on:click={() => navigator.clipboard.writeText($translatedHtml)} class="p-2 bg-green-500 text-white">
+      <button on:click={() => navigator.clipboard.writeText($translatedHtml)} class="bg-green-500 text-white">
         Copy HTML
       </button>
     </div>
