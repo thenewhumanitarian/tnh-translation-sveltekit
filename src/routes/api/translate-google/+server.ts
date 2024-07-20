@@ -9,6 +9,21 @@ function cleanHtml(html: string): string {
   return cleanedHtml;
 }
 
+function removeUnwantedSpaces(text: string): string {
+  // Remove spaces before punctuation marks
+  text = text.replace(/\s+([.,!?;:])/g, '$1');
+
+  // Remove spaces before closing HTML tags
+  text = text.replace(/\s+(<\/[a-z]+>)/gi, '$1');
+
+  // Remove unwanted whitespace sequences
+  text = text.replace(/\s*\n\s*/g, '\n'); // Collapse multiple newlines into one
+  text = text.replace(/\n+/g, '\n'); // Remove multiple newlines
+  text = text.replace(/\t+/g, ''); // Remove all tabs
+
+  return text.trim();
+}
+
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
@@ -60,11 +75,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation received from Google Translate:', translation);
 
+    // Clean up the translated content
+    const cleanedTranslation = removeUnwantedSpaces(translation);
+
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
-        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: new Date().toISOString() }
+        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: cleanedTranslation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated || new Date().toISOString() }
       ]);
 
     if (insertError) {
@@ -77,7 +95,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
-    return new Response(JSON.stringify({ translation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(JSON.stringify({ translation: cleanedTranslation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });

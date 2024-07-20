@@ -97,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
       articleId: nodeId,
       targetLanguage: targetLanguage,
       htmlContent: window.originalBody,
-      password: 'tnh',
       lastUpdated: lastUpdated
     };
 
