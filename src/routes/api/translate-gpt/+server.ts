@@ -91,7 +91,7 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq('article_id', articleId)
       .eq('src_language', srcLanguage)
       .eq('target_language', targetLanguage)
-      // .eq('last_updated', lastUpdated)
+      .eq('last_updated', lastUpdated)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
