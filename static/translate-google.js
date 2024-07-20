@@ -93,12 +93,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    // Calculate the position of the script in the DOM
-    const paragraphs = articleElement.querySelectorAll('p');
-    let scriptPosition = 0;
-    paragraphs.forEach((p, index) => {
-      if (p.contains(dropdown)) {
-        scriptPosition = index + 1;
+    // Find the position of the script in the DOM inside .article__body with translate- in src
+    const scriptElements = document.querySelectorAll('.article__body script[src*="translate-"]');
+    let scriptPosition = null;
+    scriptElements.forEach((script, index) => {
+      if (script.textContent.includes('Initializing translation script.')) {
+        scriptPosition = index + 1; // 1-based index
       }
     });
 
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
       targetLanguage: targetLanguage,
       htmlContent: window.originalBody,
       lastUpdated: lastUpdated,
-      scriptPosition: scriptPosition // Include the script position in the payload
+      scriptPosition: scriptPosition !== null ? scriptPosition : undefined // Only include if not null
     };
 
     try {

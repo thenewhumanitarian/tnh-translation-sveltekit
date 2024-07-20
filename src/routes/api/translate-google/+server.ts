@@ -79,28 +79,3 @@ export const POST: RequestHandler = async ({ request }) => {
 
     if (insertError) {
       console.error(`Supabase insert error: ${insertError.message}`);
-      console.error(`Supabase insert error details: ${JSON.stringify(insertError, null, 2)}`);
-      throw new Error(`Supabase insert error: ${insertError.message}`);
-    }
-
-    await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
-
-    console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation: cleanedTranslation, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
-  } catch (error) {
-    console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
-  }
-};
-
-export const OPTIONS: RequestHandler = async () => {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    }
-  });
-};
