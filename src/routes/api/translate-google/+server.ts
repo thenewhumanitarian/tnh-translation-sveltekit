@@ -6,7 +6,7 @@ import { cleanHtml } from '$lib/helpers/cleanHtml';
 import { removeUnwantedSpaces } from '$lib/helpers/removeUnwantedSpaces';
 import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
 import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
-import { logAccess } from '$lib/helpers/logAccess';
+import { logAccess } from '$lib/helpers/logAccess'; 
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
