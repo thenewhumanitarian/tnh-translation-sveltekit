@@ -10,10 +10,9 @@ import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, scriptPosition } = await request.json();
     const referer = request.headers.get('referer');
 
-    // List of allowed referers
     const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org'];
 
     const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
@@ -26,36 +25,33 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
 
-    // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
       .from('translations')
-      .select('id, translation')
+      .select('*')
       .eq('article_id', articleId)
       .eq('src_language', srcLanguage)
       .eq('target_language', targetLanguage)
       .eq('last_updated', lastUpdated)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
+    if (error && error.code !== 'PGRST116') {
       console.error(`Supabase error: ${error.message}`);
       console.error(`Supabase error details: ${JSON.stringify(error, null, 2)}`);
       throw new Error(`Supabase error: ${error.message}`);
     }
-
-    let translationId;
 
     if (data) {
       console.log('Translation found in Supabase');
       await logAccess('supabase', articleId, srcLanguage, targetLanguage);
 
       let translation = data.translation;
-      translationId = data.id;
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
-      translation = insertFeedbackElement(translation); // Insert feedback element
 
-      // Return existing translation
-      return new Response(JSON.stringify({ translation, translationId, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+      // Insert feedback element
+      translation = insertFeedbackElement(translation, data.id);
+
+      return new Response(JSON.stringify({ translation, translationId: data.id, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
     console.log('Translation not found in Supabase, using Google Translate');
@@ -68,13 +64,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Translation received from Google Translate:', translation);
 
-    // Clean up the translated content
     let cleanedTranslation = removeUnwantedSpaces(translation);
     cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
-    cleanedTranslation = insertFeedbackElement(cleanedTranslation); // Insert feedback element
 
-    // Store the final translation in the translations table
-    const { data: insertData, error: insertError } = await supabase
+    const { data: newTranslation, error: insertError } = await supabase
       .from('translations')
       .insert([
         { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: cleanedTranslation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated || new Date().toISOString() }
@@ -88,13 +81,13 @@ export const POST: RequestHandler = async ({ request }) => {
       throw new Error(`Supabase insert error: ${insertError.message}`);
     }
 
-    translationId = insertData.id;
-
     await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
 
+    // Insert feedback element
+    cleanedTranslation = insertFeedbackElement(cleanedTranslation, newTranslation.id);
+
     console.log('Translation successful and stored in Supabase');
-    // Return the new translation
-    return new Response(JSON.stringify({ translation: cleanedTranslation, translationId, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(JSON.stringify({ translation: cleanedTranslation, translationId: newTranslation.id, source: 'google_translate' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });

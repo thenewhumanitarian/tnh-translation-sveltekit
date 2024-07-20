@@ -11,9 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     { code: 'ht', name: 'Creole' }
   ];
 
-  // Function to create and prepend the dropdown menu and button
   function createTranslationControls() {
-    // Create dropdown menu
     const dropdown = document.createElement('select');
     dropdown.id = 'language-dropdown';
     dropdown.style.width = '100%';
@@ -24,20 +22,18 @@ document.addEventListener("DOMContentLoaded", () => {
       dropdown.appendChild(option);
     });
 
-    // Create translate button
     const translateButton = document.createElement('button');
     translateButton.textContent = 'Translate';
+    translateButton.classList.add('button--translate');
     translateButton.style.padding = '0.9rem';
     translateButton.style.cursor = 'pointer';
     translateButton.addEventListener('click', handleTranslation);
 
-    // Create loading message
     const loadingMessage = document.createElement('span');
     loadingMessage.id = 'loading-message';
     loadingMessage.style.display = 'none';
     loadingMessage.textContent = 'Translating...';
 
-    // Create a container for the dropdown and button
     const container = document.createElement('div');
     container.style.marginBottom = '1em';
     container.style.display = 'flex';
@@ -52,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return container;
   }
 
-  // Store the original content of the <article> tag if not already stored
   const articleElement = document.querySelector('article');
   if (articleElement && !window.originalBody) {
     window.originalBody = articleElement.innerHTML;
@@ -62,8 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const articleBodyElement = document.querySelector('.article__body');
-
-  // Append the translation controls on document load
   if (articleBodyElement) {
     articleBodyElement.prepend(createTranslationControls());
     console.log("Dropdown and button added to the .article__body.");
@@ -76,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const targetLanguage = document.getElementById('language-dropdown').value;
     const dropdown = document.getElementById('language-dropdown');
-    const translateButton = document.querySelector('button');
+    const translateButton = document.querySelector('.button--translate');
     const loadingMessage = document.getElementById('loading-message');
 
     if (!articleElement) {
@@ -84,7 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Disable dropdown and button, show loading message
     dropdown.disabled = true;
     translateButton.disabled = true;
     translateButton.style.display = 'none';
@@ -93,20 +85,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
     const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
 
-    const scriptElements = document.querySelectorAll('.article__body script[src*="translate-"]');
-    let scriptPosition = null;
-    scriptElements.forEach((script, index) => {
-      if (script.textContent.includes('Initializing translation script.')) {
-        scriptPosition = index + 1; // 1-based index
-      }
-    });
-
     const payload = {
       articleId: nodeId,
       targetLanguage: targetLanguage,
       htmlContent: window.originalBody,
-      lastUpdated: lastUpdated,
-      scriptPosition: scriptPosition !== null ? scriptPosition : undefined // Only include if not null
+      lastUpdated: lastUpdated
     };
 
     try {
@@ -124,18 +107,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log('Translation response:', data);
 
-      // Replace the content of the .article__body with the translated content
       articleElement.innerHTML = data.translation;
 
       const articleBodyElement = document.querySelector('.article__body');
-
-      // Recreate and prepend the translation controls
       const newContainer = createTranslationControls();
       articleBodyElement.prepend(newContainer);
     } catch (error) {
       console.error('Error during translation process:', error);
     } finally {
-      // Re-enable dropdown and button, hide loading message
       dropdown.disabled = false;
       translateButton.disabled = false;
       translateButton.style.display = 'block';
