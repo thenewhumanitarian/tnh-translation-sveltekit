@@ -2,10 +2,11 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient';
 import translate from '$lib/googleClient';
+import { JSDOM } from 'jsdom'; // Add jsdom for DOM manipulation
 
 function cleanHtml(html: string): string {
   let cleanedHtml = html.replace(/ dir="ltr"/g, '');
-  cleanedHtml = html.replace(/<div id="mct-script"><\/div>/g, '');
+  cleanedHtml = cleanedHtml.replace(/<div id="mct-script"><\/div>/g, '');
   return cleanedHtml;
 }
 
@@ -28,7 +29,7 @@ function fixLinkPunctuation(text: string): string {
   // Fix misplaced punctuation inside anchor tags
   text = text.replace(/<a([^>]+)>([.,!?;:])([^<]+?)<\/a>/g, '$2<a$1>$3</a>');
   text = text.replace(/<a([^>]+)>([^<]+?)<\/a>([.,!?;:])/g, '<a$1>$2</a>$3');
-  
+
   // Remove duplicated words outside anchor tags if they are the same as inside
   text = text.replace(/(\s+)(<a[^>]+>)([^<]+)<\/a>\3/g, '$1$2$3</a>');
 
@@ -36,6 +37,25 @@ function fixLinkPunctuation(text: string): string {
   text = text.replace(/ ,<a/g, ', <a');
 
   return text;
+}
+
+function insertFeedbackElement(html: string): string {
+  const dom = new JSDOM(html);
+  const document = dom.window.document;
+
+  const fieldNameBodyFlow = document.querySelector('.field-name-body.flow');
+  if (fieldNameBodyFlow) {
+    const paragraphs = fieldNameBodyFlow.querySelectorAll('p');
+    if (paragraphs.length >= 5) {
+      const feedbackElement = document.createElement('div');
+      feedbackElement.setAttribute('style', 'margin: 3rem auto; text-align: center; background: #ddd; padding: 2rem;');
+      feedbackElement.innerHTML = '<p>Translation Feedback Element (placeholder)</p>';
+
+      paragraphs[4].insertAdjacentElement('afterend', feedbackElement);
+    }
+  }
+
+  return dom.serialize();
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -75,8 +95,14 @@ export const POST: RequestHandler = async ({ request }) => {
     if (data) {
       console.log('Translation found in Supabase');
       await logAccess('supabase', articleId, srcLanguage, targetLanguage);
+
+      let translation = data.translation;
+      translation = removeUnwantedSpaces(translation);
+      translation = fixLinkPunctuation(translation);
+      translation = insertFeedbackElement(translation);
+
       // Return existing translation
-      return new Response(JSON.stringify({ translation: data.translation, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+      return new Response(JSON.stringify({ translation, source: 'supabase' }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
     console.log('Translation not found in Supabase, using Google Translate');
@@ -92,6 +118,7 @@ export const POST: RequestHandler = async ({ request }) => {
     // Clean up the translated content
     let cleanedTranslation = removeUnwantedSpaces(translation);
     cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
+    cleanedTranslation = insertFeedbackElement(cleanedTranslation);
 
     // Store the final translation in the translations table
     const { error: insertError } = await supabase
