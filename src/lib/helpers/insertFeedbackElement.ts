@@ -2,13 +2,15 @@ import { JSDOM } from 'jsdom';
 
 const FEEDBACK_ELEMENT_PARAGRAPH_OFFSET = 5;
 
-export function insertFeedbackElement(html: string, translationId: string): string {
+export function insertFeedbackElement(html: string, translationId: string, accessId: string): string {
   const dom = new JSDOM(html);
   const document = dom.window.document;
 
   const feedbackElementHtml = `
     <div class="feedback-element" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-      <p>Translation Feedback Element (ID: ${translationId})</p>
+      <p>Translation Feedback Element</p>
+      <pre>Translation ID: ${translationId}</pre>
+      <pre>Access ID: ${accessId}</pre>
     </div>
   `;
 

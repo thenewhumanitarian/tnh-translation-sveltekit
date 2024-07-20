@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Disable dropdown and button, show loading message
     dropdown.disabled = true;
     translateButton.disabled = true;
     translateButton.style.display = 'none';
@@ -107,6 +108,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       console.log('Translation response:', data);
 
+      // Remove existing feedback element if it exists
+      const existingFeedbackElement = articleElement.querySelector('.feedback-element');
+      if (existingFeedbackElement) {
+        existingFeedbackElement.remove();
+      }
+
       // Replace the content of the .article__body with the translated content
       articleElement.innerHTML = data.translation;
 
@@ -118,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error('Error during translation process:', error);
     } finally {
+      // Re-enable dropdown and button, hide loading message
       dropdown.disabled = false;
       translateButton.disabled = false;
       translateButton.style.display = 'block';
