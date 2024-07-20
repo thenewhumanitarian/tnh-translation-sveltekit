@@ -58,8 +58,14 @@ async function translateHtmlChunk(chunk: string, srcLanguage: string, targetLang
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, gptModel = 'gpt-3.5-turbo', password, lastUpdated } = await request.json();
+    const referer = request.headers.get('referer');
 
-    if (password !== PASSWORD) {
+    // List of allowed referers
+    const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org'];
+
+    const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
+
+    if (!isAllowedReferer && password !== PASSWORD) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 

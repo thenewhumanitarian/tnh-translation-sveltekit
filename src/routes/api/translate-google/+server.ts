@@ -12,8 +12,14 @@ function cleanHtml(html: string): string {
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
+    const referer = request.headers.get('referer');
 
-    if (password !== PASSWORD) {
+    // List of allowed referers
+    const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org'];
+
+    const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
+
+    if (!isAllowedReferer && password !== PASSWORD) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -58,7 +64,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const { error: insertError } = await supabase
       .from('translations')
       .insert([
-        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated }
+        { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: new Date().toISOString() }
       ]);
 
     if (insertError) {
