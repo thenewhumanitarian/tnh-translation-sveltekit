@@ -10,7 +10,7 @@ import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, accessIds, allowTranslationReview } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, translationIds, allowTranslationReview } = await request.json();
     const referer = request.headers.get('referer');
 
     // List of allowed referers
@@ -89,22 +89,8 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Add the feedback element if allowed and if not already rated
-    if (allowTranslationReview) {
-      const { data: ratingData, error: ratingError } = await supabase
-        .from('translation_ratings')
-        .select('*')
-        .in('access_id', accessIds);
-
-      if (ratingError) {
-        console.error(`Supabase rating check error: ${ratingError.message}`);
-        throw new Error(`Supabase rating check error: ${ratingError.message}`);
-      }
-
-      const hasRating = ratingData && ratingData.length > 0;
-
-      if (!hasRating) {
-        cleanedTranslation = insertFeedbackElement(cleanedTranslation, translationId, accessId, targetLanguage, "How happy are you with the translation of this article so far?");
-      }
+    if (allowTranslationReview && !translationIds.includes(translationId)) {
+      cleanedTranslation = insertFeedbackElement(cleanedTranslation, translationId, accessId, targetLanguage, "How happy are you with the translation of this article so far?");
     }
 
     console.log('Translation successful and stored in Supabase');
