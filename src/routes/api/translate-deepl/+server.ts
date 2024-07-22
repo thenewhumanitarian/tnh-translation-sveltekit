@@ -58,7 +58,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
       const result = await translateText(cleanedHtmlContent, srcLanguage, targetLanguage);
 
-      cleanedTranslation = removeUnwantedSpaces(result);
+      cleanedTranslation = cleanHtml(result);
+      cleanedTranslation = removeUnwantedSpaces(cleanedTranslation);
       cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
 
       // Store the final translation in the translations table
