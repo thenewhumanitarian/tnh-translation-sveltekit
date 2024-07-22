@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Add the feedback element if allowed and if not already rated
-    if (allowTranslationReview && !translationIds.includes(translationId)) {
+    if (allowTranslationReview === 'true' && !translationIds.includes(translationId)) {
       cleanedTranslation = insertFeedbackElement(cleanedTranslation, translationId, accessId, targetLanguage, "How happy are you with the translation of this article so far?");
     }
 
