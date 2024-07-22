@@ -44,24 +44,14 @@ const FEEDBACK_TEXT = {
     'submit': 'रेटिंग सबमिट करें'
   },
   'zh-CN': {
-    'title': '您如何评价这篇文章的翻译质量？',
+    'title': '您如何评价本文的翻译质量？',
     'confirmation': '感谢您的反馈！',
     'submit': '提交评分'
   },
   'zh-TW': {
-    'title': '您如何評價這篇文章的翻譯質量？',
-    'confirmation': '感謝您的反饋！',
-    'submit': '提交評分'
-  },
-  'zh-HK': {
-    'title': '您如何評價這篇文章的翻譯質量？',
-    'confirmation': '感謝您的反饋！',
-    'submit': '提交評分'
-  },
-  'zh-MO': {
-    'title': '您如何評價這篇文章的翻譯質量？',
-    'confirmation': '感謝您的反饋！',
-    'submit': '提交評分'
+    'title': '您如何評價本文的翻譯品質？',
+    'confirmation': '感謝您的回饋！ ',
+    '提交': '提交評分'
   }
 };
 
