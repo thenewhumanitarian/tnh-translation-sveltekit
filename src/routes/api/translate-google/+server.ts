@@ -6,11 +6,11 @@ import { cleanHtml } from '$lib/helpers/cleanHtml';
 import { removeUnwantedSpaces } from '$lib/helpers/removeUnwantedSpaces';
 import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
 import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
-import { logAccess } from '$lib/helpers/logAccess'; 
+import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview } = await request.json();
     const referer = request.headers.get('referer');
 
     // List of allowed referers
@@ -49,7 +49,10 @@ export const POST: RequestHandler = async ({ request }) => {
       let translation = data.translation;
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
-      translation = insertFeedbackElement(translation, data.id, accessId, targetLanguage);
+
+      if (allowTranslationReview) {
+        translation = insertFeedbackElement(translation, data.id, accessId, targetLanguage);
+      }
 
       // Return existing translation
       return new Response(JSON.stringify({ translation, source: 'supabase', translationId: data.id, accessId }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -86,8 +89,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const accessId = await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
 
-    // Add the feedback element
-    cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, targetLanguage);
+    // Add the feedback element if allowed
+    if (allowTranslationReview) {
+      cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, targetLanguage);
+    }
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
