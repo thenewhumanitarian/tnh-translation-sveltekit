@@ -1,41 +1,31 @@
 import { JSDOM } from 'jsdom';
-import { supabase } from '$lib/clients/supabaseClient';
 
 const FEEDBACK_ELEMENT_PARAGRAPH_OFFSET = 5;
 
-export async function insertFeedbackElement(html: string, translationId: string, accessId: string, articleId: string, targetLanguage: string): Promise<string> {
+export function insertFeedbackElement(html: string, translationId: string, accessId: string, targetLanguage: string, hasRating: boolean): string {
   const dom = new JSDOM(html);
   const document = dom.window.document;
 
-  // Check if this access ID has already been rated
-  const { data: ratingData, error } = await supabase
-    .from('translation_ratings')
-    .select('rating')
-    .eq('access_id', accessId)
-    .single();
-
   let feedbackElementHtml;
 
-  if (error || !ratingData) {
-    // Feedback element with rating form
+  if (hasRating) {
     feedbackElementHtml = `
       <div class="feedback-element" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-        <p style="font-weight: bold;">How happy are you with the translation of this article so far?</p>
-        <div class="star-rating">
-          <span data-value="1">&#9733;</span>
-          <span data-value="2">&#9733;</span>
-          <span data-value="3">&#9733;</span>
-          <span data-value="4">&#9733;</span>
-          <span data-value="5">&#9733;</span>
-        </div>
-        <button id="submit-rating" data-translation-id="${translationId}" data-access-id="${accessId}" data-article-id="${articleId}" data-target-language="${targetLanguage}" style="margin-top: 1rem;">Submit Rating</button>
+        <p style="font-weight: bold;">You have already rated this translation.</p>
       </div>
     `;
   } else {
-    // Feedback element showing the rating
     feedbackElementHtml = `
       <div class="feedback-element" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-        <p style="font-weight: bold;">You rated this translation with ${ratingData.rating} stars.</p>
+        <p style="font-weight: bold;">How happy are you with the translation of this article so far?</p>
+        <div class="stars">
+          <span class="star" data-rating="1">★</span>
+          <span class="star" data-rating="2">★</span>
+          <span class="star" data-rating="3">★</span>
+          <span class="star" data-rating="4">★</span>
+          <span class="star" data-rating="5">★</span>
+        </div>
+        <button class="submit-rating">Submit Rating</button>
       </div>
     `;
   }
