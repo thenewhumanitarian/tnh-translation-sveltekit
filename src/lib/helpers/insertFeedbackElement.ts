@@ -5,39 +5,63 @@ const FEEDBACK_ELEMENT_PARAGRAPH_OFFSET = 5;
 const FEEDBACK_TEXT = {
   'en': {
     'title': 'How would you rate the quality of the translation of this article?',
-    'confirmation': 'Thanks for your feedback!'
+    'confirmation': 'Thanks for your feedback!',
+    'submit': 'Submit rating'
   },
   'de': {
     'title': 'Wie bewerten Sie die Qualität der Übersetzung dieses Artikels?',
-    'confirmation': 'Danke für Ihr Feedback!'
+    'confirmation': 'Danke für Ihr Feedback!',
+    'submit': 'Bewertung abgeben'
   },
   'es': {
     'title': '¿Cómo calificaría la calidad de la traducción de este artículo?',
-    'confirmation': '¡Gracias por sus comentarios!'
+    'confirmation': '¡Gracias por sus comentarios!',
+    'submit': 'Enviar calificación'
   },
   'fr': {
     'title': 'Comment évalueriez-vous la qualité de la traduction de cet article?',
-    'confirmation': 'Merci pour vos commentaires!'
+    'confirmation': 'Merci pour vos commentaires!',
+    'submit': 'Soumettre la note'
   },
   'it': {
     'title': 'Come valuterebbe la qualità della traduzione di questo articolo?',
-    'confirmation': 'Grazie per il tuo feedback!'
+    'confirmation': 'Grazie per il tuo feedback!',
+    'submit': 'Invia valutazione'
   },
   'ar': {
     'title': 'كيف تقيم جودة ترجمة هذا المقال؟',
-    'confirmation': 'شكرا لملاحظاتك!'
+    'confirmation': 'شكرا لملاحظاتك!',
+    'submit': 'إرسال التقييم'
   },
   'ht': {
     'title': 'Ki jan ou ta evalye kalite tradiksyon atik sa a?',
-    'confirmation': 'Mèsi pou fidbak ou!'
+    'confirmation': 'Mèsi pou fidbak ou!',
+    'submit': 'Voye evalyasyon'
   },
   'hi': {
     'title': 'इस लेख के अनुवाद की गुणवत्ता को आप कैसे रेट करेंगे?',
-    'confirmation': 'आपकी प्रतिक्रिया के लिए धन्यवाद!'
+    'confirmation': 'आपकी प्रतिक्रिया के लिए धन्यवाद!',
+    'submit': 'रेटिंग सबमिट करें'
   },
-  'zh': {
+  'zh-CN': {
     'title': '您如何评价这篇文章的翻译质量？',
-    'confirmation': '感谢您的反馈！'
+    'confirmation': '感谢您的反馈！',
+    'submit': '提交评分'
+  },
+  'zh-TW': {
+    'title': '您如何評價這篇文章的翻譯質量？',
+    'confirmation': '感謝您的反饋！',
+    'submit': '提交評分'
+  },
+  'zh-HK': {
+    'title': '您如何評價這篇文章的翻譯質量？',
+    'confirmation': '感謝您的反饋！',
+    'submit': '提交評分'
+  },
+  'zh-MO': {
+    'title': '您如何評價這篇文章的翻譯質量？',
+    'confirmation': '感謝您的反饋！',
+    'submit': '提交評分'
   }
 };
 
@@ -58,7 +82,7 @@ export function insertFeedbackElement(html: string, translationId: string, acces
         <span class="translation-feedback--star" data-rating="4">★</span>
         <span class="translation-feedback--star" data-rating="5">★</span>
       </div>
-      <button class="translation-feedback--button submit-rating button button--primary">Submit Rating</button>
+      <button class="translation-feedback--button submit-rating button button--primary">${feedbackText.submit}</button>
     </div>
   `;
 
