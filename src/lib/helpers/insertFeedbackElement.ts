@@ -49,8 +49,8 @@ export function insertFeedbackElement(html: string, translationId: string, acces
 
   const feedbackElementHtml = `
     <div class="translation-feedback--wrapper" data-translation-id="${translationId}" data-access-id="${accessId}" data-target-language="${targetLanguage}">
-      <p class="translation-fedback--title">${feedbackText.title}</p>
-      <p class="translation-fedback--confirmation">${feedbackText.confirmation}</p>
+      <p class="translation-feedback--title">${feedbackText.title}</p>
+      <p class="translation-feedback--confirmation">${feedbackText.confirmation}</p>
       <div class="translation-feedback--stars">
         <span class="translation-feedback--star" data-rating="1">★</span>
         <span class="translation-feedback--star" data-rating="2">★</span>
