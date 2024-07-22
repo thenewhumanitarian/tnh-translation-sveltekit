@@ -16,7 +16,7 @@ export function insertFeedbackElement(html: string, translationId: string, acces
         <span class="translation-feedback--star" data-rating="4">★</span>
         <span class="translation-feedback--star" data-rating="5">★</span>
       </div>
-      <button class="translation-feedback--button submit-rating">Submit Rating</button>
+      <button class="translation-feedback--button submit-rating button button--primary">Submit Rating</button>
     </div>
   `;
 
