@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request }) => {
       let translation = data.translation;
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
-      if (allowTranslationReview) {
+      if (allowTranslationReview === 'true') {
         translation = await insertFeedbackElement(translation, data.id, accessId, articleId, targetLanguage);
       }
 
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const accessId = await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
 
     // Add the feedback element if allowed
-    if (allowTranslationReview) {
+    if (allowTranslationReview === 'true') {
       cleanedTranslation = await insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, articleId, targetLanguage);
     }
 
