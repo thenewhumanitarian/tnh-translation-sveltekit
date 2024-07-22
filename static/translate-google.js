@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log('Translation response:', data);
 
       // Remove existing feedback element if it exists
-      const existingFeedbackElement = articleElement.querySelector('.feedback-element');
+      const existingFeedbackElement = articleElement.querySelector('.translation--feedback-element');
       if (existingFeedbackElement) {
         existingFeedbackElement.remove();
       }
