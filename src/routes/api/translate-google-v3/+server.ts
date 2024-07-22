@@ -1,16 +1,16 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { PASSWORD } from '$env/static/private';
 import { supabase } from '$lib/clients/supabaseClient';
-import translate from '$lib/clients/googleClient';
 import { cleanHtml } from '$lib/helpers/cleanHtml';
 import { removeUnwantedSpaces } from '$lib/helpers/removeUnwantedSpaces';
 import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
 import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
 import { logAccess } from '$lib/helpers/logAccess';
+import { translateText } from '$lib/clients/googleClient-v3';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview, accessIds } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, accessIds, allowTranslationReview, model } = await request.json();
     const referer = request.headers.get('referer');
 
     // List of allowed referers
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
-    console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
+    console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage} using model ${model}`);
 
     // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
@@ -56,23 +56,17 @@ export const POST: RequestHandler = async ({ request }) => {
     } else {
       console.log('Translation not found in Supabase, using Google Translate');
 
-      const [translation] = await translate.translate(cleanedHtmlContent, {
-        from: srcLanguage,
-        to: targetLanguage,
-        format: 'html'
-      });
+      const result = await translateText(cleanedHtmlContent, srcLanguage, targetLanguage, model);
 
-      console.log('Translation received from Google Translate:', translation);
-
-      // Clean up the translated content
-      cleanedTranslation = removeUnwantedSpaces(translation);
+      cleanedTranslation = cleanHtml(result);
+      cleanedTranslation = removeUnwantedSpaces(cleanedTranslation);
       cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
 
       // Store the final translation in the translations table
       const { data: insertedData, error: insertError } = await supabase
         .from('translations')
         .insert([
-          { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: cleanedTranslation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated || new Date().toISOString() }
+          { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: cleanedTranslation, original_string: cleanedHtmlContent, gpt_model: model, last_updated: lastUpdated || new Date().toISOString() }
         ])
         .select('id')
         .single();
@@ -93,8 +87,8 @@ export const POST: RequestHandler = async ({ request }) => {
       const { data: ratingData, error: ratingError } = await supabase
         .from('translation_ratings')
         .select('*')
-        .eq('translation_id', translationId)
-        .in('access_id', accessIds);
+        .in('access_id', accessIds)
+        .eq('translation_id', translationId);
 
       if (ratingError) {
         console.error(`Supabase rating check error: ${ratingError.message}`);
