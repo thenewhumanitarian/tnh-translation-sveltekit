@@ -50,8 +50,8 @@ export const POST: RequestHandler = async ({ request }) => {
       translation = removeUnwantedSpaces(translation);
       translation = fixLinkPunctuation(translation);
 
-      if (allowTranslationReview) {
-        translation = insertFeedbackElement(translation, data.id, accessId, targetLanguage);
+      if (allowTranslationReview === "true") {
+        translation = insertFeedbackElement(translation, data.id, accessId, targetLanguage, true);
       }
 
       // Return existing translation
@@ -90,8 +90,8 @@ export const POST: RequestHandler = async ({ request }) => {
     const accessId = await logAccess('google_translate', articleId, srcLanguage, targetLanguage);
 
     // Add the feedback element if allowed
-    if (allowTranslationReview) {
-      cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, targetLanguage);
+    if (allowTranslationReview === "true") {
+      cleanedTranslation = insertFeedbackElement(cleanedTranslation, insertedData.id, accessId, targetLanguage, true);
     }
 
     console.log('Translation successful and stored in Supabase');
