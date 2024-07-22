@@ -7,16 +7,16 @@ export function insertFeedbackElement(html: string, translationId: string, acces
   const document = dom.window.document;
 
   const feedbackElementHtml = `
-    <div class="feedback-element" data-translation-id="${translationId}" data-access-id="${accessId}" data-target-language="${targetLanguage}" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-      <p style="font-weight: bold;">How happy are you with the translation of this article so far?</p>
-      <div class="stars">
-        <span class="star" data-rating="1">★</span>
-        <span class="star" data-rating="2">★</span>
-        <span class="star" data-rating="3">★</span>
-        <span class="star" data-rating="4">★</span>
-        <span class="star" data-rating="5">★</span>
+    <div class="translation-feedback--wrapper" data-translation-id="${translationId}" data-access-id="${accessId}" data-target-language="${targetLanguage}" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
+      <p class="translation-fedback--title>How happy are you with the translation of this article so far?</p>
+      <div class="translation-feedback--stars">
+        <span class="translation-feedback--star" data-rating="1">★</span>
+        <span class="translation-feedback--star" data-rating="2">★</span>
+        <span class="translation-feedback--star" data-rating="3">★</span>
+        <span class="translation-feedback--star" data-rating="4">★</span>
+        <span class="translation-feedback--star" data-rating="5">★</span>
       </div>
-      <button class="submit-rating">Submit Rating</button>
+      <button class="translation-feedback--button submit-rating">Submit Rating</button>
     </div>
   `;
 
@@ -26,7 +26,7 @@ export function insertFeedbackElement(html: string, translationId: string, acces
 
   if (fieldNameBodyFlow) {
     // Remove any existing feedback elements
-    const existingFeedbackElement = fieldNameBodyFlow.querySelector('.feedback-element');
+    const existingFeedbackElement = fieldNameBodyFlow.querySelector('.translation-feedback--wrapper');
     if (existingFeedbackElement) {
       existingFeedbackElement.remove();
     }
