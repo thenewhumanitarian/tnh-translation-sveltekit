@@ -10,7 +10,7 @@ import { logAccess } from '$lib/helpers/logAccess';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview } = await request.json();
+    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview, accessIds } = await request.json();
     const referer = request.headers.get('referer');
 
     // List of allowed referers
@@ -93,7 +93,8 @@ export const POST: RequestHandler = async ({ request }) => {
       const { data: ratingData, error: ratingError } = await supabase
         .from('translation_ratings')
         .select('*')
-        .eq('translation_id', translationId);
+        .eq('translation_id', translationId)
+        .in('access_id', accessIds);
 
       if (ratingError) {
         console.error(`Supabase rating check error: ${ratingError.message}`);
