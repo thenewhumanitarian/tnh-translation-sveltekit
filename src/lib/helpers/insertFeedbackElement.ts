@@ -8,7 +8,7 @@ export function insertFeedbackElement(html: string, translationId: string, acces
 
   const feedbackElementHtml = `
     <div class="translation-feedback--wrapper" data-translation-id="${translationId}" data-access-id="${accessId}" data-target-language="${targetLanguage}" style="margin: 3rem auto; text-align: center; background: #eee; padding: 2rem;">
-      <p class="translation-fedback--title>How happy are you with the translation of this article so far?</p>
+      <p class="translation-fedback--title">How happy are you with the translation of this article so far?</p>
       <div class="translation-feedback--stars">
         <span class="translation-feedback--star" data-rating="1">★</span>
         <span class="translation-feedback--star" data-rating="2">★</span>
