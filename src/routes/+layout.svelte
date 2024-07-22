@@ -9,6 +9,7 @@
 <nav class="flex gap-5 p-5 pb-1">
 	<a href="/translate-google"><button>Translate with Google</button></a>
 	<a href="/translate-gpt"><button>Translate with ChatGPT</button></a>
+	<a href="/translate-deepl"><button>Translate with DeepL</button></a>
 </nav>
 
 <main class="p-5">
