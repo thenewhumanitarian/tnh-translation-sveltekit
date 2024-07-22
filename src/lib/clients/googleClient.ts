@@ -18,25 +18,25 @@
 
 /* V3 */
 
-import { Translate } from '@google-cloud/translate/build/src/v2';
-import { GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_LOCATION } from '$env/static/private';
+import { TranslationServiceClient } from '@google-cloud/translate';
+import { GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_LOCATION, GOOGLE_TRANSLATION_MODEL } from '$env/static/private';
 
 // Replace \\n with \n to format the private key correctly
 const formattedPrivateKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
-const translate = new Translate({
-  projectId: GOOGLE_PROJECT_ID,
+const translationClient = new TranslationServiceClient({
   credentials: {
     client_email: GOOGLE_CLIENT_EMAIL,
     private_key: formattedPrivateKey,
   },
+  projectId: GOOGLE_PROJECT_ID,
 });
 
 export async function translateText(
   text: string,
   sourceLanguageCode: string,
   targetLanguageCode: string,
-  model: string = 'general/nmt'
+  model: string = GOOGLE_TRANSLATION_MODEL
 ): Promise<string> {
   const request = {
     parent: `projects/${GOOGLE_PROJECT_ID}/locations/${GOOGLE_LOCATION}`,
@@ -48,7 +48,7 @@ export async function translateText(
   };
 
   try {
-    const [response] = await translate.translateText(request);
+    const [response] = await translationClient.translateText(request);
     return response.translations.map(t => t.translatedText).join('');
   } catch (error) {
     console.error(`Error during translation: ${error.message}`);
