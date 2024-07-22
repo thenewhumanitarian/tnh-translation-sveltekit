@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Add the feedback element if allowed and if not already rated
-    if (allowTranslationReview === 'true') {
+    if (allowTranslationReview) {
       const { data: ratingData, error: ratingError } = await supabase
         .from('translation_ratings')
         .select('*')
