@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadingMessage.style.display = 'block';
 
     const nodeId = document.querySelector('link[rel="shortlink"]').href.split('/').pop();
-    const lastUpdated = document.querySelector('meta[property="article:modified_time"]').content;
+    const lastUpdated = document.querySelector('meta[property="article:modified_time"]')?.content || null;
 
     const payload = {
       articleId: nodeId,
