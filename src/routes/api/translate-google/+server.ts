@@ -11,10 +11,12 @@ import { logAccess } from '$lib/helpers/logAccess';
 export const POST: RequestHandler = async ({ request }) => {
   try {
     const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview, accessIds } = await request.json();
-    const referer = request.headers.get('referer');
-
-    // List of allowed referers
-    const allowedReferers = ['platformsh.site', 'thenewhumanitarian.org', 'thenewhumanitarian.org.ddev.site'];
+    const referer = request.headers.get('origin');
+    const allowedReferers = [
+      'platformsh.site',
+      'thenewhumanitarian.org',
+      'thenewhumanitarian.org.ddev.site'
+    ];
 
     const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
 
@@ -33,6 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq('article_id', articleId)
       .eq('src_language', srcLanguage)
       .eq('target_language', targetLanguage)
+      .eq('gpt_model', 'google_translate')
       .eq('last_updated', lastUpdated)
       .single();
 
@@ -48,7 +51,7 @@ export const POST: RequestHandler = async ({ request }) => {
     let accessId;
 
     if (data) {
-      console.log('Translation found in Supabase');
+      console.log('Translation found in Supabase (Google Translate)');
       accessId = await logAccess('supabase', articleId, srcLanguage, targetLanguage);
       cleanedTranslation = data.translation;
       source = 'supabase';

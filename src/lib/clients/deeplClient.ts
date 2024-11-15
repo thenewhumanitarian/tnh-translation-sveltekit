@@ -1,22 +1,28 @@
 import * as deepl from 'deepl-node';
-import { DEEPL_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+
+const DEEPL_API_KEY = env.DEEPL_API_KEY;
 
 // Initialize the DeepL Translator with the API key
 const translator = new deepl.Translator(DEEPL_API_KEY);
 
 /**
- * Translate text using DeepL
- * @param text - The text to translate
+ * Translate an array of texts using DeepL
+ * @param texts - The array of texts to translate
  * @param sourceLang - The source language code (optional)
  * @param targetLang - The target language code
- * @returns The translated text
+ * @returns The array of translated texts
  */
-export async function translateText(text: string, sourceLang: string | null, targetLang: string): Promise<string> {
+export async function translateTexts(
+  texts: string[],
+  sourceLang: string | null,
+  targetLang: string
+): Promise<string[]> {
   try {
-    const result = await translator.translateText(text, sourceLang, targetLang);
-    return result.text;
+    const results = await translator.translateText(texts, sourceLang, targetLang);
+    return results.map(result => result.text);
   } catch (error) {
-    console.error('Error translating text with DeepL:', error);
+    console.error('Error translating texts with DeepL:', error);
     throw error;
   }
 }
