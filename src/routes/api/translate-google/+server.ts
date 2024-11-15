@@ -78,7 +78,7 @@ export const POST: RequestHandler = async ({ request }) => {
       const $ = cheerio.load(cleanedHtmlContent);
 
       // Collect text nodes and keep references for replacement
-      const nodesToTranslate = [];
+      const nodesToTranslate: { node: cheerio.Node; text: string }[] = [];
       $('body')
         .find('*')
         .contents()
@@ -91,19 +91,24 @@ export const POST: RequestHandler = async ({ request }) => {
           }
         });
 
-      // Extract texts to translate
+      // Extract texts to translate without trimming
       const textsToTranslate = nodesToTranslate.map((nodeObj) => nodeObj.text);
 
+      // Initialize total character count
+      let totalCharsTranslated = 0;
+
       // Function to batch texts based on character limits
-      function batchTexts(texts, maxChars) {
-        const batches = [];
-        let currentBatch = [];
+      function batchTexts(texts: string[], maxChars: number) {
+        const batches: string[][] = [];
+        let currentBatch: string[] = [];
         let currentChars = 0;
 
         texts.forEach((text) => {
           const textLength = text.length;
           if (currentChars + textLength > maxChars) {
-            batches.push(currentBatch);
+            if (currentBatch.length > 0) {
+              batches.push(currentBatch);
+            }
             currentBatch = [text];
             currentChars = textLength;
           } else {
@@ -118,11 +123,10 @@ export const POST: RequestHandler = async ({ request }) => {
       }
 
       // Batch texts to respect character limit per request
-      const MAX_CHARS_PER_BATCH = 5000; // Adjust as needed
+      const MAX_CHARS_PER_BATCH = 5000; // Adjust as needed based on Google Translate API limits
       const textBatches = batchTexts(textsToTranslate, MAX_CHARS_PER_BATCH);
 
-      const translatedTexts = [];
-      let totalCharsTranslated = 0; // Initialize character count
+      const translatedTexts: string[] = [];
 
       // Translate each batch and collect translations
       for (const batch of textBatches) {
@@ -138,9 +142,20 @@ export const POST: RequestHandler = async ({ request }) => {
         translatedTexts.push(...batchTranslations);
       }
 
-      // Replace original text nodes with translated text
+      // Function to preserve leading and trailing spaces
+      function preserveSpaces(originalText: string, translatedText: string): string {
+        const leadingSpacesMatch = originalText.match(/^\s*/);
+        const trailingSpacesMatch = originalText.match(/\s*$/);
+        const leadingSpaces = leadingSpacesMatch ? leadingSpacesMatch[0] : '';
+        const trailingSpaces = trailingSpacesMatch ? trailingSpacesMatch[0] : '';
+        return `${leadingSpaces}${translatedText}${trailingSpaces}`;
+      }
+
+      // Replace original text nodes with translated text while preserving spaces
       translatedTexts.forEach((translatedText, index) => {
-        nodesToTranslate[index].node.data = translatedText;
+        const originalText = nodesToTranslate[index].text;
+        const preservedText = preserveSpaces(originalText, translatedText);
+        nodesToTranslate[index].node.data = preservedText;
       });
 
       // Serialize the Cheerio DOM back to HTML
@@ -210,7 +225,7 @@ export const POST: RequestHandler = async ({ request }) => {
       JSON.stringify({ translation: cleanedTranslation, source, translationId, accessId }),
       { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error during translation process: ${error.message}`);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
