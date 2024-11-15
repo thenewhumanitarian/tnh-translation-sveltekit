@@ -7,18 +7,30 @@ import { removeUnwantedSpaces } from '$lib/helpers/removeUnwantedSpaces';
 import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
 import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
 import { logAccess } from '$lib/helpers/logAccess';
+import * as cheerio from 'cheerio'; // Import Cheerio
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const { articleId, srcLanguage = 'en', targetLanguage, htmlContent, password, lastUpdated, allowTranslationReview, accessIds } = await request.json();
+    const {
+      articleId,
+      srcLanguage = 'en',
+      targetLanguage,
+      htmlContent,
+      password,
+      lastUpdated,
+      allowTranslationReview,
+      accessIds,
+    } = await request.json();
     const referer = request.headers.get('origin');
     const allowedReferers = [
       'platformsh.site',
       'thenewhumanitarian.org',
-      'thenewhumanitarian.org.ddev.site'
+      'thenewhumanitarian.org.ddev.site',
     ];
 
-    const isAllowedReferer = allowedReferers.some(allowedReferer => referer && referer.includes(allowedReferer));
+    const isAllowedReferer = allowedReferers.some(
+      (allowedReferer) => referer && referer.includes(allowedReferer)
+    );
 
     if (!isAllowedReferer && password !== PASSWORD) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -26,7 +38,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const cleanedHtmlContent = cleanHtml(htmlContent);
 
-    console.log(`Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`);
+    console.log(
+      `Received request to translate articleId: ${articleId} from ${srcLanguage} to ${targetLanguage}`
+    );
 
     // Check if translation exists in Supabase by matching the article ID, target language, and last updated time
     const { data, error } = await supabase
@@ -39,7 +53,8 @@ export const POST: RequestHandler = async ({ request }) => {
       .eq('last_updated', lastUpdated)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116: single row not found
       console.error(`Supabase error: ${error.message}`);
       console.error(`Supabase error details: ${JSON.stringify(error, null, 2)}`);
       throw new Error(`Supabase error: ${error.message}`);
@@ -59,23 +74,96 @@ export const POST: RequestHandler = async ({ request }) => {
     } else {
       console.log('Translation not found in Supabase, using Google Translate');
 
-      const [translation] = await translate.translate(cleanedHtmlContent, {
-        from: srcLanguage,
-        to: targetLanguage,
-        format: 'html'
+      // Parse the HTML content using Cheerio
+      const $ = cheerio.load(cleanedHtmlContent);
+
+      // Collect text nodes and keep references for replacement
+      const nodesToTranslate = [];
+      $('body')
+        .find('*')
+        .contents()
+        .each(function () {
+          if (this.type === 'text' && this.data.trim()) {
+            nodesToTranslate.push({
+              node: this,
+              text: this.data,
+            });
+          }
+        });
+
+      // Extract texts to translate
+      const textsToTranslate = nodesToTranslate.map((nodeObj) => nodeObj.text);
+
+      // Function to batch texts based on character limits
+      function batchTexts(texts, maxChars) {
+        const batches = [];
+        let currentBatch = [];
+        let currentChars = 0;
+
+        texts.forEach((text) => {
+          const textLength = text.length;
+          if (currentChars + textLength > maxChars) {
+            batches.push(currentBatch);
+            currentBatch = [text];
+            currentChars = textLength;
+          } else {
+            currentBatch.push(text);
+            currentChars += textLength;
+          }
+        });
+        if (currentBatch.length > 0) {
+          batches.push(currentBatch);
+        }
+        return batches;
+      }
+
+      // Batch texts to respect character limit per request
+      const MAX_CHARS_PER_BATCH = 5000; // Adjust as needed
+      const textBatches = batchTexts(textsToTranslate, MAX_CHARS_PER_BATCH);
+
+      const translatedTexts = [];
+      let totalCharsTranslated = 0; // Initialize character count
+
+      // Translate each batch and collect translations
+      for (const batch of textBatches) {
+        // Compute the character count for the current batch
+        const batchCharCount = batch.reduce((sum, text) => sum + text.length, 0);
+        totalCharsTranslated += batchCharCount; // Update the total character count
+
+        const [batchTranslations] = await translate.translate(batch, {
+          from: srcLanguage,
+          to: targetLanguage,
+          format: 'text',
+        });
+        translatedTexts.push(...batchTranslations);
+      }
+
+      // Replace original text nodes with translated text
+      translatedTexts.forEach((translatedText, index) => {
+        nodesToTranslate[index].node.data = translatedText;
       });
 
-      console.log('Translation received from Google Translate:', translation);
+      // Serialize the Cheerio DOM back to HTML
+      const translatedHtml = $.html();
 
       // Clean up the translated content
-      cleanedTranslation = removeUnwantedSpaces(translation);
+      cleanedTranslation = removeUnwantedSpaces(translatedHtml);
       cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
 
-      // Store the final translation in the translations table
+      // Store the final translation in the translations table, including the character count
       const { data: insertedData, error: insertError } = await supabase
         .from('translations')
         .insert([
-          { article_id: articleId, src_language: srcLanguage, target_language: targetLanguage, translation: cleanedTranslation, original_string: cleanedHtmlContent, gpt_model: 'google_translate', last_updated: lastUpdated || new Date().toISOString() }
+          {
+            article_id: articleId,
+            src_language: srcLanguage,
+            target_language: targetLanguage,
+            translation: cleanedTranslation,
+            original_string: cleanedHtmlContent,
+            gpt_model: 'google_translate',
+            last_updated: lastUpdated || new Date().toISOString(),
+            char_count: totalCharsTranslated, // Store the character count
+          },
         ])
         .select('id')
         .single();
@@ -107,16 +195,27 @@ export const POST: RequestHandler = async ({ request }) => {
       const hasRating = ratingData && ratingData.length > 0;
 
       if (!hasRating) {
-        cleanedTranslation = insertFeedbackElement(cleanedTranslation, translationId, accessId, targetLanguage);
+        cleanedTranslation = insertFeedbackElement(
+          cleanedTranslation,
+          translationId,
+          accessId,
+          targetLanguage
+        );
       }
     }
 
     console.log('Translation successful and stored in Supabase');
     // Return the new translation
-    return new Response(JSON.stringify({ translation: cleanedTranslation, source, translationId, accessId }), { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(
+      JSON.stringify({ translation: cleanedTranslation, source, translationId, accessId }),
+      { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } }
+    );
   } catch (error) {
     console.error(`Error during translation process: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    });
   }
 };
 
@@ -126,7 +225,7 @@ export const OPTIONS: RequestHandler = async () => {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    }
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
   });
 };

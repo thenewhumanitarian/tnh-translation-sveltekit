@@ -111,13 +111,49 @@ export const POST: RequestHandler = async ({ request }) => {
         ...attributeNodes.map((attrNode) => attrNode.text),
       ];
 
-      // Handle batch translation
-      const batchSize = 50; // DeepL's limit is 50 texts per request
+      // Initialize total character count
+      let totalCharsTranslated = 0;
+
+      // Function to batch texts based on DeepL's limits
+      function batchTexts(texts, maxTexts, maxChars) {
+        const batches = [];
+        let currentBatch = [];
+        let currentChars = 0;
+
+        texts.forEach((text) => {
+          const textLength = text.length;
+          if (
+            currentBatch.length >= maxTexts ||
+            currentChars + textLength > maxChars
+          ) {
+            batches.push(currentBatch);
+            currentBatch = [text];
+            currentChars = textLength;
+          } else {
+            currentBatch.push(text);
+            currentChars += textLength;
+          }
+        });
+        if (currentBatch.length > 0) {
+          batches.push(currentBatch);
+        }
+        return batches;
+      }
+
+      // Batch texts to respect DeepL's limits
+      const MAX_TEXTS_PER_BATCH = 50; // DeepL's limit is 50 texts per request
+      const MAX_CHARS_PER_BATCH = 30000; // DeepL's limit is 30,000 characters per request
+      const textBatches = batchTexts(texts, MAX_TEXTS_PER_BATCH, MAX_CHARS_PER_BATCH);
+
       let translations = [];
 
-      for (let i = 0; i < texts.length; i += batchSize) {
-        const batchTexts = texts.slice(i, i + batchSize);
-        const batchTranslations = await translateTexts(batchTexts, srcLanguage, targetLanguage);
+      // Translate each batch and collect translations
+      for (const batch of textBatches) {
+        // Compute the character count for the current batch
+        const batchCharCount = batch.reduce((sum, text) => sum + text.length, 0);
+        totalCharsTranslated += batchCharCount; // Update the total character count
+
+        const batchTranslations = await translateTexts(batch, srcLanguage, targetLanguage);
         translations = translations.concat(batchTranslations);
       }
 
@@ -140,7 +176,7 @@ export const POST: RequestHandler = async ({ request }) => {
       cleanedTranslation = removeUnwantedSpaces(cleanedTranslation);
       cleanedTranslation = fixLinkPunctuation(cleanedTranslation);
 
-      // Store the final translation in the translations table
+      // Store the final translation in the translations table, including the character count
       const { data: insertedData, error: insertError } = await supabase
         .from('translations')
         .insert([
@@ -152,6 +188,7 @@ export const POST: RequestHandler = async ({ request }) => {
             original_string: cleanedHtmlContent,
             gpt_model: 'deepl_translate',
             last_updated: lastUpdated || new Date().toISOString(),
+            char_count: totalCharsTranslated, // Store the character count
           },
         ])
         .select('id')
