@@ -7,7 +7,7 @@ import { fixLinkPunctuation } from '$lib/helpers/fixLinkPunctuation';
 import { insertFeedbackElement } from '$lib/helpers/insertFeedbackElement';
 import { logAccess } from '$lib/helpers/logAccess';
 import { translateTexts } from '$lib/clients/deeplClient';
-import { load } from 'cheerio';
+import { load } from 'cheerio'; // Use Cheerio's load function
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
@@ -105,9 +105,9 @@ export const POST: RequestHandler = async ({ request }) => {
         });
       });
 
-      // Collect texts for translation
-      const texts = [
-        ...textNodes.map((node) => node.data.trim()),
+      // Collect texts for translation without trimming
+      const textsToTranslate = [
+        ...textNodes.map((node) => node.data),
         ...attributeNodes.map((attrNode) => attrNode.text),
       ];
 
@@ -143,7 +143,7 @@ export const POST: RequestHandler = async ({ request }) => {
       // Batch texts to respect DeepL's limits
       const MAX_TEXTS_PER_BATCH = 50; // DeepL's limit is 50 texts per request
       const MAX_CHARS_PER_BATCH = 30000; // DeepL's limit is 30,000 characters per request
-      const textBatches = batchTexts(texts, MAX_TEXTS_PER_BATCH, MAX_CHARS_PER_BATCH);
+      const textBatches = batchTexts(textsToTranslate, MAX_TEXTS_PER_BATCH, MAX_CHARS_PER_BATCH);
 
       let translations = [];
 
@@ -159,12 +159,26 @@ export const POST: RequestHandler = async ({ request }) => {
 
       // Replace text nodes and attributes with translations
       let index = 0;
+
+      // Function to preserve leading and trailing spaces
+      function preserveSpaces(originalText, translatedText) {
+        const leadingSpaces = originalText.match(/^\s*/)[0];
+        const trailingSpaces = originalText.match(/\s*$/)[0];
+        return `${leadingSpaces}${translatedText}${trailingSpaces}`;
+      }
+
       textNodes.forEach((node) => {
-        node.data = translations[index];
+        const originalText = node.data;
+        const translatedText = translations[index] || '';
+        node.data = preserveSpaces(originalText, translatedText);
         index++;
       });
+
       attributeNodes.forEach((attrNode) => {
-        $(attrNode.element).attr(attrNode.attr, translations[index]);
+        const originalText = attrNode.text;
+        const translatedText = translations[index] || '';
+        const preservedText = preserveSpaces(originalText, translatedText).trim();
+        $(attrNode.element).attr(attrNode.attr, preservedText);
         index++;
       });
 
